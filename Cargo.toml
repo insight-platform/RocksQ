@@ -1,0 +1,28 @@
+[workspace]
+members = [
+    "pq",
+    "pq_py",
+]
+
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Ivan Kudriavtsev <ivan.a.kudryavtsev@gmail.com>"]
+description = "Rust persistent queue based on RocksDB with Python bindings"
+homepage = "https://github.com/insight-platform/savant-rs"
+repository = "https://github.com/insight-platform/savant-rs"
+readme = "README.md"
+keywords = ["computer-vision", "video-processing"]
+categories = ["algorithms", "data-structures", "computer-vision"]
+license="Apache-2.0"
+rust-version = "1.70"
+
+
+[profile.release]
+opt-level = 3
+
+[profile.bench]
+opt-level = 3
+
