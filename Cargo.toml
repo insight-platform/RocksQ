@@ -1,24 +1,23 @@
 [workspace]
 members = [
-    "pq",
-    "pq_py",
+    "queue_rs",
+    "queue_py",
 ]
 
 resolver = "2"
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Ivan Kudriavtsev <ivan.a.kudryavtsev@gmail.com>"]
 description = "Rust persistent queue based on RocksDB with Python bindings"
-homepage = "https://github.com/insight-platform/savant-rs"
-repository = "https://github.com/insight-platform/savant-rs"
+homepage = "https://github.com/insight-platform/RocksQ"
+repository = "https://github.com/insight-platform/RocksQ"
 readme = "README.md"
-keywords = ["computer-vision", "video-processing"]
-categories = ["algorithms", "data-structures", "computer-vision"]
+keywords = ["database", "queue", "persistent", "rocksdb", "python"]
+categories = ["algorithms", "data-structures"]
 license="Apache-2.0"
 rust-version = "1.70"
-
 
 [profile.release]
 opt-level = 3

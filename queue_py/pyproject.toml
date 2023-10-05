@@ -1,0 +1,23 @@
+[build-system]
+requires = ["maturin>=0.14,<=0.15"]
+build-backend = "maturin"
+
+[project]
+name = "rocksq"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+]
+
+[tool.black]
+skip-string-normalization = true
+
+[tool.pylint.messages_control]
+max-line-length = 88
+
+[tool.maturin]
+python-source = "python"
+include = ["*"]
+

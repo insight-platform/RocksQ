@@ -1,0 +1,19 @@
+FROM ghcr.io/insight-platform/manylinux_2_28_arm64:v0.0.1 as chef
+
+FROM chef as planner
+
+WORKDIR /opt
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
+
+FROM chef AS builder
+WORKDIR /opt
+COPY --from=planner /opt/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
+COPY . .
+ARG PYTHON_INTERPRETER
+RUN bash /opt/docker/build-manylinux.sh
+RUN rm -rf target
+
+FROM alpine:3.18 as dist
+COPY --from=builder /opt/dist /opt/dist

@@ -1,0 +1,32 @@
+[package]
+name = "rocksq"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+queue_rs = { path = "../queue_rs" }
+parking_lot = "0.12"
+
+[dependencies.pyo3]
+version = "0.19"
+
+[dev-dependencies]
+serial_test = "2.0"
+
+[build-dependencies]
+pyo3-build-config = "0.19"
+cbindgen = "0.24"
+
+[package.metadata.maturin]
+python-source = "python"
+
+[features]
+extension-module = ["pyo3/extension-module"]
+default = ["extension-module"]
+
+[dependencies.rocksdb]
+version = "0.21"
+default-features = false
