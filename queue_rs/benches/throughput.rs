@@ -15,7 +15,7 @@ fn rw_mixed(b: &mut Bencher) {
     _ = PersistentQueueWithCapacity::remove_db(path.clone());
     {
         let mut db =
-            PersistentQueueWithCapacity::new(path.clone(), COUNT as u128, Options::default())
+            PersistentQueueWithCapacity::new(path.clone(), COUNT as u64, Options::default())
                 .unwrap();
         b.iter(|| {
             for _ in 0..COUNT {
@@ -33,7 +33,9 @@ fn write_read(b: &mut Bencher) {
     let path = "/tmp/test_b2".to_string();
     _ = PersistentQueueWithCapacity::remove_db(path.clone());
     {
-        let mut db = PersistentQueueWithCapacity::new(path.clone(), COUNT as u128).unwrap();
+        let mut db =
+            PersistentQueueWithCapacity::new(path.clone(), COUNT as u64, Options::default())
+                .unwrap();
         b.iter(|| {
             for _ in 0..COUNT {
                 db.push(&block).unwrap();

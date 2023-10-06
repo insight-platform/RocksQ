@@ -10,49 +10,49 @@ pub fn version() -> &'static str {
 pub struct PersistentQueueWithCapacity {
     db: DB,
     path: String,
-    write_index: u128,
-    read_index: u128,
-    max_elements: u128,
+    write_index: u64,
+    read_index: u64,
+    max_elements: u64,
 }
 
-const U128_BYTE_LEN: usize = 16;
-const WRITE_INDEX_CELL: u128 = u128::MAX;
-const READ_INDEX_CELL: u128 = u128::MAX - 1;
+const U64_BYTE_LEN: usize = 8;
+const WRITE_INDEX_CELL: u64 = u64::MAX;
+const READ_INDEX_CELL: u64 = u64::MAX - 1;
 
 #[cfg(test)]
-const MAX_ALLOWED_INDEX: u128 = 4;
+const MAX_ALLOWED_INDEX: u64 = 4;
 #[cfg(not(test))]
-const MAX_ALLOWED_INDEX: u128 = u128::MAX - 2;
+const MAX_ALLOWED_INDEX: u64 = u64::MAX - 2;
 
 // db_opts.set_write_buffer_size(64 * 1024 * 1024);
 // db_opts.set_max_write_buffer_number(5);
 // db_opts.set_min_write_buffer_number_to_merge(2);
 
 impl PersistentQueueWithCapacity {
-    pub fn new(path: String, max_elements: u128, mut db_opts: Options) -> Result<Self> {
+    pub fn new(path: String, max_elements: u64, mut db_opts: Options) -> Result<Self> {
         db_opts.create_if_missing(true);
-        db_opts.set_prefix_extractor(rocksdb::SliceTransform::create_fixed_prefix(U128_BYTE_LEN));
+        db_opts.set_prefix_extractor(rocksdb::SliceTransform::create_fixed_prefix(U64_BYTE_LEN));
 
         let db = DB::open(&db_opts, &path)?;
 
         let write_index_opt = db.get(Self::index_to_key(WRITE_INDEX_CELL))?;
         let write_index = match write_index_opt {
             Some(v) => {
-                let mut buf = [0u8; U128_BYTE_LEN];
+                let mut buf = [0u8; U64_BYTE_LEN];
                 buf.copy_from_slice(&v);
-                u128::from_le_bytes(buf)
+                u64::from_le_bytes(buf)
             }
-            None => 0u128,
+            None => 0u64,
         };
 
         let read_index_opt = db.get(Self::index_to_key(READ_INDEX_CELL))?;
         let read_index = match read_index_opt {
             Some(v) => {
-                let mut buf = [0u8; U128_BYTE_LEN];
+                let mut buf = [0u8; U64_BYTE_LEN];
                 buf.copy_from_slice(&v);
-                u128::from_le_bytes(buf)
+                u64::from_le_bytes(buf)
             }
-            None => 0u128,
+            None => 0u64,
         };
 
         Ok(Self {
@@ -64,7 +64,7 @@ impl PersistentQueueWithCapacity {
         })
     }
 
-    fn index_to_key(index: u128) -> [u8; U128_BYTE_LEN] {
+    fn index_to_key(index: u64) -> [u8; U64_BYTE_LEN] {
         index.to_le_bytes()
     }
 
@@ -76,7 +76,7 @@ impl PersistentQueueWithCapacity {
         Ok(fs::dir_size(&self.path)?)
     }
 
-    pub fn len(&self) -> u128 {
+    pub fn len(&self) -> u64 {
         if self.write_index >= self.read_index {
             self.write_index - self.read_index
         } else {

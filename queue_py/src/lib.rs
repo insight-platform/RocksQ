@@ -11,8 +11,8 @@ pub struct PersistentQueueWithCapacity(Arc<Mutex<queue_rs::PersistentQueueWithCa
 #[pymethods]
 impl PersistentQueueWithCapacity {
     #[new]
-    #[pyo3(signature=(path, max_elements = 1000000000))]
-    fn new(path: String, max_elements: u128) -> PyResult<Self> {
+    #[pyo3(signature=(path, max_elements = 1000_000_000))]
+    fn new(path: String, max_elements: u64) -> PyResult<Self> {
         let queue =
             queue_rs::PersistentQueueWithCapacity::new(path, max_elements, Options::default())
                 .map_err(|e| {
@@ -68,7 +68,7 @@ impl PersistentQueueWithCapacity {
         })
     }
 
-    fn len(&self) -> u128 {
+    fn len(&self) -> u64 {
         self.0.lock().len()
     }
 
