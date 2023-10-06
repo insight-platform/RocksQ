@@ -10,12 +10,12 @@ from rocksq import PersistentQueueWithCapacity
 
 q = PersistentQueueWithCapacity('/tmp/queue')
 
-start = time.time()
 buf = bytes(256 * 1024)
 
 OPS = 8 * 30
 RELEASE_GIL = True
 
+start = time.time()
 print("begin writing")
 for i in range(OPS):
     q.push(buf, no_gil=RELEASE_GIL)
