@@ -27,9 +27,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - docker_file: docker/Dockerfile.manylinux_2_28_ARM64
-            name: manylinux-arm
-            arch: linux/arm64
+#          - docker_file: docker/Dockerfile.manylinux_2_28_ARM64
+#            name: manylinux-arm
+#            arch: linux/arm64
           - docker_file: docker/Dockerfile.manylinux_2_28_X64
             name: manylinux-x86
             arch: linux/amd64
@@ -61,18 +61,10 @@ jobs:
           name: wheels-${{ matrix.name }}
           path: distfiles/dist
 
-      - name: Release
-        runs-on: ubuntu-latest
-        if: "startsWith(github.ref, 'refs/tags/')"
-        needs: [linux]
-        steps:
-          - uses: actions/download-artifact@v3
-            with:
-              name: wheels-${{ matrix.name }}
-          - name: Publish to PyPI
-            uses: PyO3/maturin-action@v1
-            env:
-              MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
-            with:
-              command: upload
-              args: --skip-existing *
+      - name: Publish to PyPI
+        uses: PyO3/maturin-action@v1
+        env:
+          MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+        with:
+          command: upload
+          args: --skip-existing distfiles/dist/*
