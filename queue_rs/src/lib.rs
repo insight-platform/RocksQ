@@ -2,7 +2,7 @@ mod fs;
 
 use anyhow::Result;
 use rocksdb::{Options, DB};
-pub struct PersistentQueue {
+pub struct PersistentQueueWithCapacity {
     db: DB,
     path: String,
     write_index: u128,
@@ -23,7 +23,7 @@ const MAX_ALLOWED_INDEX: u128 = u128::MAX - 2;
 // db_opts.set_max_write_buffer_number(5);
 // db_opts.set_min_write_buffer_number_to_merge(2);
 
-impl PersistentQueue {
+impl PersistentQueueWithCapacity {
     pub fn new(path: String, max_elements: u128, mut db_opts: Options) -> Result<Self> {
         db_opts.create_if_missing(true);
         db_opts.set_prefix_extractor(rocksdb::SliceTransform::create_fixed_prefix(U128_BYTE_LEN));
@@ -140,9 +140,10 @@ mod tests {
     #[test]
     fn test_normal_ops() {
         let path = "/tmp/test1".to_string();
-        _ = PersistentQueue::remove_db(path.clone());
+        _ = PersistentQueueWithCapacity::remove_db(path.clone());
         {
-            let mut db = PersistentQueue::new(path.clone(), 10, Options::default()).unwrap();
+            let mut db =
+                PersistentQueueWithCapacity::new(path.clone(), 10, Options::default()).unwrap();
             db.push(&[1, 2, 3]).unwrap();
             db.push(&[4, 5, 6]).unwrap();
             assert_eq!(db.len(), 2);
@@ -167,20 +168,21 @@ mod tests {
             assert!(db.is_empty());
             assert_eq!(data, vec![7, 8, 9]);
         }
-        PersistentQueue::remove_db(path).unwrap();
+        PersistentQueueWithCapacity::remove_db(path).unwrap();
     }
 
     #[test]
     fn test_limit_len_ops() {
         let path = "/tmp/test2".to_string();
-        _ = PersistentQueue::remove_db(path.clone());
+        _ = PersistentQueueWithCapacity::remove_db(path.clone());
         {
-            let mut db = PersistentQueue::new(path.clone(), 2, Options::default()).unwrap();
+            let mut db =
+                PersistentQueueWithCapacity::new(path.clone(), 2, Options::default()).unwrap();
             db.push(&[1, 2, 3]).unwrap();
             db.push(&[4, 5, 6]).unwrap();
             assert!(matches!(db.push(&[1, 2, 3]), Err(_)));
         }
-        PersistentQueue::remove_db(path).unwrap();
+        PersistentQueueWithCapacity::remove_db(path).unwrap();
     }
 }
 

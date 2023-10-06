@@ -2,7 +2,7 @@
 
 extern crate test;
 
-use queue_rs::PersistentQueue;
+use queue_rs::PersistentQueueWithCapacity;
 use rocksdb::Options;
 use test::Bencher;
 
@@ -12,9 +12,11 @@ const COUNT: usize = 1000;
 fn rw_mixed(b: &mut Bencher) {
     let block = vec![0u8; 256 * 1024];
     let path = "/tmp/test_b1".to_string();
-    _ = PersistentQueue::remove_db(path.clone());
+    _ = PersistentQueueWithCapacity::remove_db(path.clone());
     {
-        let mut db = PersistentQueue::new(path.clone(), COUNT as u128, Options::default()).unwrap();
+        let mut db =
+            PersistentQueueWithCapacity::new(path.clone(), COUNT as u128, Options::default())
+                .unwrap();
         b.iter(|| {
             for _ in 0..COUNT {
                 db.push(&block).unwrap();
@@ -22,16 +24,16 @@ fn rw_mixed(b: &mut Bencher) {
             }
         });
     }
-    PersistentQueue::remove_db(path).unwrap();
+    PersistentQueueWithCapacity::remove_db(path).unwrap();
 }
 
 #[bench]
 fn write_read(b: &mut Bencher) {
     let block = vec![0u8; 256 * 1024];
     let path = "/tmp/test_b2".to_string();
-    _ = PersistentQueue::remove_db(path.clone());
+    _ = PersistentQueueWithCapacity::remove_db(path.clone());
     {
-        let mut db = PersistentQueue::new(path.clone(), COUNT as u128).unwrap();
+        let mut db = PersistentQueueWithCapacity::new(path.clone(), COUNT as u128).unwrap();
         b.iter(|| {
             for _ in 0..COUNT {
                 db.push(&block).unwrap();
@@ -41,5 +43,5 @@ fn write_read(b: &mut Bencher) {
             }
         });
     }
-    PersistentQueue::remove_db(path).unwrap();
+    PersistentQueueWithCapacity::remove_db(path).unwrap();
 }

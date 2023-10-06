@@ -1,5 +1,5 @@
 import time
-from rocksq import PersistentQueue
+from rocksq import PersistentQueueWithCapacity
 
 # Create a queue that will persist to disk
 
@@ -8,7 +8,7 @@ from rocksq import PersistentQueue
 # except:
 #     pass
 
-q = PersistentQueue('/tmp/queue')
+q = PersistentQueueWithCapacity('/tmp/queue')
 
 start = time.time()
 buf = bytes(256 * 1024)

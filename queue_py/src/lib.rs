@@ -6,19 +6,20 @@ use rocksdb::Options;
 use std::sync::Arc;
 
 #[pyclass]
-pub struct PersistentQueue {
-    queue: Arc<Mutex<queue_rs::PersistentQueue>>,
+pub struct PersistentQueueWithCapacity {
+    queue: Arc<Mutex<queue_rs::PersistentQueueWithCapacity>>,
 }
 
 #[pymethods]
-impl PersistentQueue {
+impl PersistentQueueWithCapacity {
     #[new]
     #[pyo3(signature=(path, max_elements = 1000000000))]
     fn new(path: String, max_elements: u128) -> PyResult<Self> {
-        let queue = queue_rs::PersistentQueue::new(path, max_elements, Options::default())
-            .map_err(|e| {
-                PyRuntimeError::new_err(format!("Failed to create persistent queue: {}", e))
-            })?;
+        let queue =
+            queue_rs::PersistentQueueWithCapacity::new(path, max_elements, Options::default())
+                .map_err(|e| {
+                    PyRuntimeError::new_err(format!("Failed to create persistent queue: {}", e))
+                })?;
         let queue = Arc::new(Mutex::new(queue));
         Ok(Self { queue })
     }
@@ -72,7 +73,7 @@ impl PersistentQueue {
 
     #[staticmethod]
     fn remove_db(path: String) -> PyResult<()> {
-        queue_rs::PersistentQueue::remove_db(path).map_err(|e| {
+        queue_rs::PersistentQueueWithCapacity::remove_db(path).map_err(|e| {
             PyRuntimeError::new_err(format!("Failed to remove persistent queue: {}", e))
         })
     }
@@ -86,6 +87,6 @@ pub fn version() -> String {
 #[pymodule]
 fn rocksq(_: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(version, m)?)?;
-    m.add_class::<PersistentQueue>()?;
+    m.add_class::<PersistentQueueWithCapacity>()?;
     Ok(())
 }
