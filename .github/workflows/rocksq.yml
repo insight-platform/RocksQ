@@ -27,9 +27,9 @@ jobs:
     strategy:
       matrix:
         include:
-#          - docker_file: docker/Dockerfile.manylinux_2_28_ARM64
-#            name: manylinux-arm
-#            arch: linux/arm64
+          - docker_file: docker/Dockerfile.manylinux_2_28_ARM64
+            name: manylinux-arm
+            arch: linux/arm64
           - docker_file: docker/Dockerfile.manylinux_2_28_X64
             name: manylinux-x86
             arch: linux/amd64
