@@ -10,6 +10,7 @@ Features:
 - supports only bytes-like objects;
 - can operate in a multithreaded environment efficiently (push and pop methods can release GIL if necessary);
 - keeps the state between restarts;
+- pop is non-blocking (returns None if the queue is empty);
 
 What is not supported:
 
