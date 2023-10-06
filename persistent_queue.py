@@ -14,14 +14,15 @@ start = time.time()
 buf = bytes(256 * 1024)
 
 OPS = 8 * 30
+RELEASE_GIL = True
 
 print("begin writing")
 for i in range(OPS):
-    q.push(buf)
+    q.push(buf, no_gil=RELEASE_GIL)
 
 print("begin reading")
 for i in range(OPS):
-    v = q.pop()
+    v = q.pop(no_gil=RELEASE_GIL)
 
 
 end = time.time()

@@ -59,10 +59,13 @@ impl PersistentQueueWithCapacity {
     }
 
     fn size(&self) -> PyResult<u64> {
-        self.0
-            .lock()
-            .size()
-            .map_err(|e| PyRuntimeError::new_err(format!("Failed to get queue size: {}", e)))
+        Python::with_gil(|py| {
+            py.allow_threads(|| {
+                self.0.lock().size().map_err(|e| {
+                    PyRuntimeError::new_err(format!("Failed to get queue size: {}", e))
+                })
+            })
+        })
     }
 
     fn len(&self) -> u128 {
