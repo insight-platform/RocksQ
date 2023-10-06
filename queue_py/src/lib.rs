@@ -6,9 +6,7 @@ use rocksdb::Options;
 use std::sync::Arc;
 
 #[pyclass]
-pub struct PersistentQueueWithCapacity {
-    queue: Arc<Mutex<queue_rs::PersistentQueueWithCapacity>>,
-}
+pub struct PersistentQueueWithCapacity(Arc<Mutex<queue_rs::PersistentQueueWithCapacity>>);
 
 #[pymethods]
 impl PersistentQueueWithCapacity {
@@ -21,7 +19,7 @@ impl PersistentQueueWithCapacity {
                     PyRuntimeError::new_err(format!("Failed to create persistent queue: {}", e))
                 })?;
         let queue = Arc::new(Mutex::new(queue));
-        Ok(Self { queue })
+        Ok(Self(queue))
     }
 
     #[pyo3(signature = (item, no_gil = true))]
@@ -29,7 +27,7 @@ impl PersistentQueueWithCapacity {
         let bytes = item.as_bytes();
         Python::with_gil(|py| {
             let f = || {
-                self.queue
+                self.0
                     .lock()
                     .push(bytes)
                     .map_err(|e| PyRuntimeError::new_err(format!("Failed to push item: {}", e)))
@@ -47,9 +45,9 @@ impl PersistentQueueWithCapacity {
     fn pop(&mut self, no_gil: bool) -> PyResult<Option<PyObject>> {
         Python::with_gil(|py| {
             Ok(if no_gil {
-                py.allow_threads(|| self.queue.lock().pop())
+                py.allow_threads(|| self.0.lock().pop())
             } else {
-                self.queue.lock().pop()
+                self.0.lock().pop()
             }
             .map(|e| e.map(|e| PyObject::from(PyBytes::new(py, e.as_slice()))))
             .map_err(|_| PyRuntimeError::new_err("Failed to pop item"))?)
@@ -57,18 +55,18 @@ impl PersistentQueueWithCapacity {
     }
 
     fn is_empty(&self) -> bool {
-        self.queue.lock().is_empty()
+        self.0.lock().is_empty()
     }
 
     fn size(&self) -> PyResult<u64> {
-        self.queue
+        self.0
             .lock()
             .size()
             .map_err(|e| PyRuntimeError::new_err(format!("Failed to get queue size: {}", e)))
     }
 
     fn len(&self) -> u128 {
-        self.queue.lock().len()
+        self.0.lock().len()
     }
 
     #[staticmethod]

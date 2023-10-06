@@ -2,6 +2,11 @@ mod fs;
 
 use anyhow::Result;
 use rocksdb::{Options, DB};
+
+pub fn version() -> &'static str {
+    env!("CARGO_PKG_VERSION")
+}
+
 pub struct PersistentQueueWithCapacity {
     db: DB,
     path: String,
@@ -184,8 +189,41 @@ mod tests {
         }
         PersistentQueueWithCapacity::remove_db(path).unwrap();
     }
-}
 
-pub fn version() -> &'static str {
-    env!("CARGO_PKG_VERSION")
+    #[test]
+    fn test_read_with_close() {
+        let path = "/tmp/test3".to_string();
+        _ = PersistentQueueWithCapacity::remove_db(path.clone());
+        {
+            let mut db =
+                PersistentQueueWithCapacity::new(path.clone(), 10, Options::default()).unwrap();
+            db.push(&[1, 2, 3]).unwrap();
+            db.push(&[4, 5, 6]).unwrap();
+            db.push(&[7, 8, 9]).unwrap();
+        }
+
+        {
+            let mut db =
+                PersistentQueueWithCapacity::new(path.clone(), 10, Options::default()).unwrap();
+            let res = db.pop().unwrap();
+            assert_eq!(res, Some(vec![1, 2, 3]));
+        }
+
+        {
+            let mut db =
+                PersistentQueueWithCapacity::new(path.clone(), 10, Options::default()).unwrap();
+            let res = db.pop().unwrap();
+            assert_eq!(res, Some(vec![4, 5, 6]));
+            let res = db.pop().unwrap();
+            assert_eq!(res, Some(vec![7, 8, 9]));
+        }
+
+        {
+            let mut db =
+                PersistentQueueWithCapacity::new(path.clone(), 10, Options::default()).unwrap();
+            let res = db.pop().unwrap();
+            assert_eq!(res, None);
+        }
+        PersistentQueueWithCapacity::remove_db(path).unwrap();
+    }
 }
