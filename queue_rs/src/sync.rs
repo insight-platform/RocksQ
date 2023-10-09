@@ -3,6 +3,7 @@ use parking_lot::Mutex;
 use rocksdb::Options;
 use std::sync::Arc;
 
+#[derive(Clone)]
 pub struct PersistentQueueWithCapacity(Arc<Mutex<crate::PersistentQueueWithCapacity>>);
 
 impl PersistentQueueWithCapacity {

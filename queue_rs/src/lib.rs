@@ -1,4 +1,5 @@
 mod fs;
+pub mod nonblock;
 pub mod sync;
 
 use anyhow::Result;
