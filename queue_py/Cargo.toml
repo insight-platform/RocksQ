@@ -17,7 +17,6 @@ crate-type = ["cdylib", "lib"]
 
 [dependencies]
 queue_rs = { path = "../queue_rs" }
-parking_lot = "0.12"
 
 [dependencies.pyo3]
 version = "0.19"

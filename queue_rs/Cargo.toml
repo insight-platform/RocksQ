@@ -19,6 +19,7 @@ crate-type = ["cdylib", "lib"]
 
 [dependencies]
 anyhow = "1"
+parking_lot = "0.12"
 
 [dependencies.rocksdb]
 version = "0.21"
