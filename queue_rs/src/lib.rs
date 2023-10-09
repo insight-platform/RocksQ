@@ -9,6 +9,7 @@ pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
 
+#[derive(Debug)]
 pub struct PersistentQueueWithCapacity {
     db: DB,
     path: String,
@@ -118,7 +119,7 @@ impl PersistentQueueWithCapacity {
     pub fn pop(&mut self, mut max_elts: usize) -> Result<Vec<Vec<u8>>> {
         let mut res = Vec::with_capacity(max_elts);
         let mut batch = rocksdb::WriteBatch::default();
-        while self.read_index != self.write_index && max_elts > 0 {
+        loop {
             let key = Self::index_to_key(self.read_index);
             let value = self.db.get(key)?;
             if let Some(v) = value {
@@ -129,6 +130,12 @@ impl PersistentQueueWithCapacity {
                     self.read_index = 0;
                 }
                 max_elts -= 1;
+            } else {
+                break;
+            }
+
+            if self.read_index != self.write_index && max_elts > 0 {
+                continue;
             } else {
                 break;
             }
@@ -157,8 +164,8 @@ mod tests {
             db.push(&[&[1, 2, 3]]).unwrap();
             db.push(&[&[4, 5, 6]]).unwrap();
             assert_eq!(db.len(), 2);
-            assert!(matches!(db.pop(1), Ok(_)));
-            assert!(matches!(db.pop(1), Ok(_)));
+            assert!(matches!(db.pop(1), Ok(v ) if v == vec![vec![1, 2, 3]]));
+            assert!(matches!(db.pop(1), Ok(v) if v == vec![vec![4, 5, 6]]));
             assert!(db.is_empty());
             db.push(&[&[1, 2, 3]]).unwrap();
             db.push(&[&[4, 5, 6]]).unwrap();
@@ -166,11 +173,11 @@ mod tests {
             assert_eq!(db.len(), 3);
             assert_eq!(db.read_index, 2);
             assert_eq!(db.write_index, 1);
-            assert!(matches!(db.pop(1), Ok(_)));
+            assert!(matches!(db.pop(1), Ok(v) if v == vec![vec![1, 2, 3]]));
             assert_eq!(db.len(), 2);
             assert_eq!(db.read_index, 3);
             assert_eq!(db.write_index, 1);
-            assert!(matches!(db.pop(1), Ok(_)));
+            assert!(matches!(db.pop(1), Ok(v) if v == vec![vec![4, 5, 6]]));
             assert_eq!(db.len(), 1);
             assert_eq!(db.read_index, 0);
             assert_eq!(db.write_index, 1);
@@ -225,5 +232,36 @@ mod tests {
             assert!(res.is_empty());
         }
         PersistentQueueWithCapacity::remove_db(&path).unwrap();
+    }
+
+    #[test]
+    fn push_pop_many() {
+        let path = "/tmp/test_push_pop_many".to_string();
+        _ = PersistentQueueWithCapacity::remove_db(&path);
+        let mut queue = PersistentQueueWithCapacity::new(&path, 1000, Options::default()).unwrap();
+        queue
+            .push(&[
+                &[1u8, 2u8, 3u8],
+                &[4u8, 5u8, 6u8],
+                &[7u8, 8u8, 9u8],
+                &[10u8, 11u8, 12u8],
+            ])
+            .unwrap();
+        let res = queue.pop(3).unwrap();
+        assert_eq!(
+            res,
+            vec![
+                vec![1u8, 2u8, 3u8],
+                vec![4u8, 5u8, 6u8],
+                vec![7u8, 8u8, 9u8]
+            ]
+        );
+        let res = queue.pop(3).unwrap();
+        assert_eq!(res, vec![vec![10u8, 11u8, 12u8]]);
+
+        let res = queue.pop(1).unwrap();
+        assert!(res.is_empty());
+
+        _ = PersistentQueueWithCapacity::remove_db(&path);
     }
 }

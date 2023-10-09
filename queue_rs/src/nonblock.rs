@@ -1,5 +1,5 @@
 use anyhow::Result;
-use crossbeam_channel::Sender;
+use crossbeam_channel::{Receiver, Sender};
 use std::thread;
 
 pub enum Operation {
@@ -10,7 +10,7 @@ pub enum Operation {
     Stop,
 }
 
-pub enum Response {
+pub enum ResponseVariant {
     Push(Result<()>),
     Pop(Result<Vec<Vec<u8>>>),
     Length(usize),
@@ -18,10 +18,26 @@ pub enum Response {
     Stop,
 }
 
+pub struct Response(Receiver<ResponseVariant>);
+
+impl Response {
+    pub fn is_ready(&self) -> bool {
+        !self.0.is_empty()
+    }
+
+    pub fn try_get(&self) -> Result<ResponseVariant> {
+        Ok(self.0.try_recv()?)
+    }
+
+    pub fn get(&self) -> Result<ResponseVariant> {
+        Ok(self.0.recv()?)
+    }
+}
+
 pub struct PersistentQueueWithCapacity(
     (
         Option<thread::JoinHandle<Result<()>>>,
-        Sender<(Operation, Sender<Response>)>,
+        Sender<(Operation, Sender<ResponseVariant>)>,
     ),
 );
 
@@ -32,33 +48,34 @@ fn start_op_loop(
     db_options: rocksdb::Options,
 ) -> (
     Option<thread::JoinHandle<Result<()>>>,
-    Sender<(Operation, Sender<Response>)>,
+    Sender<(Operation, Sender<ResponseVariant>)>,
 ) {
     let mut queue =
         crate::PersistentQueueWithCapacity::new(&path, max_elements, db_options).unwrap();
-    let (tx, rx) = crossbeam_channel::bounded::<(Operation, Sender<Response>)>(max_inflight_ops);
+    let (tx, rx) =
+        crossbeam_channel::bounded::<(Operation, Sender<ResponseVariant>)>(max_inflight_ops);
     let handle = thread::spawn(move || {
         loop {
             match rx.recv() {
                 Ok((Operation::Push(values), resp_tx)) => {
                     let value_slices = values.iter().map(|e| e.as_slice()).collect::<Vec<_>>();
                     let resp = queue.push(&value_slices);
-                    resp_tx.send(Response::Push(resp))?;
+                    resp_tx.send(ResponseVariant::Push(resp))?;
                 }
                 Ok((Operation::Pop(max_elts), resp_tx)) => {
                     let resp = queue.pop(max_elts);
-                    resp_tx.send(Response::Pop(resp))?;
+                    resp_tx.send(ResponseVariant::Pop(resp))?;
                 }
                 Ok((Operation::Length, resp_tx)) => {
                     let resp = queue.len();
-                    resp_tx.send(Response::Length(resp))?;
+                    resp_tx.send(ResponseVariant::Length(resp))?;
                 }
                 Ok((Operation::Size, resp_tx)) => {
                     let resp = queue.size();
-                    resp_tx.send(Response::Size(resp))?;
+                    resp_tx.send(ResponseVariant::Size(resp))?;
                 }
                 Ok((Operation::Stop, resp_tx)) => {
-                    resp_tx.send(Response::Stop)?;
+                    resp_tx.send(ResponseVariant::Stop)?;
                     break;
                 }
                 Err(e) => return Err(anyhow::anyhow!("Error receiving operation: {}", e)),
@@ -98,7 +115,7 @@ impl PersistentQueueWithCapacity {
         Ok(())
     }
 
-    pub fn len(&self) -> Result<usize> {
+    pub fn len(&self) -> Result<Response> {
         if !self.is_healthy() {
             return Err(anyhow::anyhow!(
                 "Queue is unhealthy: cannot use it anymore."
@@ -107,13 +124,10 @@ impl PersistentQueueWithCapacity {
 
         let (tx, rx) = crossbeam_channel::bounded(1);
         self.0 .1.send((Operation::Length, tx))?;
-        match rx.recv()? {
-            Response::Length(len) => Ok(len),
-            _ => Err(anyhow::anyhow!("Unexpected response")),
-        }
+        Ok(Response(rx))
     }
 
-    pub fn size(&self) -> Result<usize> {
+    pub fn size(&self) -> Result<Response> {
         if !self.is_healthy() {
             return Err(anyhow::anyhow!(
                 "Queue is unhealthy: cannot use it anymore."
@@ -122,13 +136,10 @@ impl PersistentQueueWithCapacity {
 
         let (tx, rx) = crossbeam_channel::bounded(1);
         self.0 .1.send((Operation::Size, tx))?;
-        match rx.recv()? {
-            Response::Size(size) => size,
-            _ => Err(anyhow::anyhow!("Unexpected response")),
-        }
+        Ok(Response(rx))
     }
 
-    pub fn push(&mut self, values: &[&[u8]]) -> Result<()> {
+    pub fn push(&mut self, values: &[&[u8]]) -> Result<Response> {
         if !self.is_healthy() {
             return Err(anyhow::anyhow!(
                 "Queue is unhealthy: cannot use it anymore."
@@ -140,13 +151,10 @@ impl PersistentQueueWithCapacity {
             Operation::Push(values.iter().map(|e| e.to_vec()).collect()),
             tx,
         ))?;
-        match rx.recv()? {
-            Response::Push(resp) => resp,
-            _ => Err(anyhow::anyhow!("Unexpected response")),
-        }
+        Ok(Response(rx))
     }
 
-    pub fn pop(&mut self, max_elements: usize) -> Result<Vec<Vec<u8>>> {
+    pub fn pop(&mut self, max_elements: usize) -> Result<Response> {
         if !self.is_healthy() {
             return Err(anyhow::anyhow!(
                 "Queue is unhealthy: cannot use it anymore."
@@ -155,10 +163,7 @@ impl PersistentQueueWithCapacity {
 
         let (tx, rx) = crossbeam_channel::bounded(1);
         self.0 .1.send((Operation::Pop(max_elements), tx))?;
-        match rx.recv()? {
-            Response::Pop(resp) => resp,
-            _ => Err(anyhow::anyhow!("Unexpected response")),
-        }
+        Ok(Response(rx))
     }
 }
 
@@ -178,7 +183,31 @@ mod tests {
             super::PersistentQueueWithCapacity::new(&path, 1000, 1000, rocksdb::Options::default())
                 .unwrap();
         assert!(queue.is_healthy());
-        assert_eq!(queue.len().unwrap(), 0);
+        let resp = queue.len().unwrap().get().unwrap();
+        assert!(matches!(resp, super::ResponseVariant::Length(0)));
+        _ = crate::PersistentQueueWithCapacity::remove_db(&path);
+    }
+
+    #[test]
+    fn push_pop() {
+        let path = "/tmp/test_push_pop".to_string();
+        _ = crate::PersistentQueueWithCapacity::remove_db(&path);
+        let mut queue =
+            super::PersistentQueueWithCapacity::new(&path, 1000, 1000, rocksdb::Options::default())
+                .unwrap();
+        assert!(queue.is_healthy());
+        let resp = queue.len().unwrap().get().unwrap();
+        assert!(matches!(resp, super::ResponseVariant::Length(0)));
+        let resp = queue.push(&[&[1u8, 2u8, 3u8]]).unwrap().get().unwrap();
+        assert!(matches!(resp, super::ResponseVariant::Push(Ok(()))));
+        let resp = queue.len().unwrap().get().unwrap();
+        assert!(matches!(resp, super::ResponseVariant::Length(1)));
+        let resp = queue.pop(1).unwrap().get().unwrap();
+        assert!(
+            matches!(resp, super::ResponseVariant::Pop(Ok(v)) if v == vec![vec![1u8, 2u8, 3u8]])
+        );
+        let resp = queue.len().unwrap().get().unwrap();
+        assert!(matches!(resp, super::ResponseVariant::Length(0)));
         _ = crate::PersistentQueueWithCapacity::remove_db(&path);
     }
 }
