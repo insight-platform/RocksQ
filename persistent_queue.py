@@ -1,29 +1,27 @@
 import time
 from rocksq.sync import PersistentQueueWithCapacity
 
-# Create a queue that will persist to disk
+NUM = 1
+OPS = 1000000
+RELEASE_GIL = True
 
-# try:
-#     PersistentQueue.remove_db('/tmp/queue')
-# except:
-#     pass
+try:
+    PersistentQueueWithCapacity.remove_db('/tmp/queue')
+except:
+    pass
 
 q = PersistentQueueWithCapacity('/tmp/queue')
 
-data = [bytes(256 * 1024), bytes(256 * 1024), bytes(256 * 1024), bytes(256 * 1024)]
-
-OPS = 8 * 30
-RELEASE_GIL = True
-
 start = time.time()
-print("begin writing")
 for i in range(OPS):
+    data = [bytes(str(i), 'utf-8')]
     q.push(data, no_gil=RELEASE_GIL)
 
-print("begin reading")
 for i in range(OPS):
-    v = q.pop(max_elements=4, no_gil=RELEASE_GIL)
-    assert len(v) == 4
+    v = q.pop(max_elements=NUM, no_gil=RELEASE_GIL)
+    assert len(v) == NUM
+    assert v == [bytes(str(i), 'utf-8')]
+
 
 end = time.time()
 
