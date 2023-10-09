@@ -1,5 +1,5 @@
 import time
-from rocksq import PersistentQueueWithCapacity
+from rocksq.sync import PersistentQueueWithCapacity
 
 # Create a queue that will persist to disk
 
