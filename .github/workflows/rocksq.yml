@@ -54,7 +54,7 @@ jobs:
           MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
         with:
           command: upload
-          args: --skip-existing dist/*
+          args: --skip-existing queue_py/dist/*
 
   macos:
     runs-on: macos-latest
@@ -89,7 +89,7 @@ jobs:
           MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
         with:
           command: upload
-          args: --skip-existing dist/*
+          args: --skip-existing queue_py/dist/*
 
   linux:
     runs-on: ubuntu-latest
