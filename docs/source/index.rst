@@ -5,10 +5,15 @@
 RocksQ Library
 ************************
 
-.. toctree::
-   :maxdepth: 1
+.. automodule:: rocksq
+   :members:
+   :undoc-members:
 
-   modules/module
+.. toctree::
+   :maxdepth: 2
+
+   modules/blocking
+   modules/nonblocking
 
 
 
