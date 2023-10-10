@@ -165,10 +165,10 @@ impl Response {
 /// path : str
 ///   The path to the queue.
 /// max_elements : int
-///   The maximum number of elements the queue can hold. Default to ``1000_000_000``.
+///   The maximum number of elements the queue can hold. Default to ``1_000_000_000``.
 /// max_inflight_ops : int
 ///   The maximum number of inflight operations. If the number of inflight operations reached its limit,
-///   further ops are blocked until the capacity is available. Default to ``1000``.
+///   further ops are blocked until the capacity is available. Default to ``1_000``.
 ///
 /// Raises
 /// ------

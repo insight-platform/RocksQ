@@ -10,7 +10,7 @@ Features:
 - supports only bytes-like objects;
 - can operate in a multithreaded environment efficiently (push and pop methods can release GIL if necessary);
 - keeps the state between restarts;
-- two implementations: blocking and unblocking;
+- two implementations: blocking and nonblocking;
 
 What is not supported:
 
@@ -37,7 +37,7 @@ pip install rocksq
 
 ## Usage
 
-See the examples in the [python](python) directory. 
+See the examples in the [python](https://github.com/insight-platform/RocksQ/tree/main/python) directory. 
 
 API docs are located at: [https://insight-platform.github.io/RocksQ/](https://insight-platform.github.io/RocksQ/).
 

@@ -10,7 +10,7 @@ use rocksdb::Options;
 /// path : str
 ///   The path to the queue.
 /// max_elements : int
-///   The maximum number of elements the queue can hold. Default is ``1000_000_000``.
+///   The maximum number of elements the queue can hold. Default is ``1_000_000_000``.
 ///
 /// Raises
 /// ------
