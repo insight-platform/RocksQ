@@ -38,24 +38,20 @@ impl Response {
     }
 }
 
-pub struct PersistentQueueWithCapacity(
-    (
-        Option<thread::JoinHandle<Result<()>>>,
-        Sender<(Operation, Sender<ResponseVariant>)>,
-    ),
-);
+type WorkingThread = Option<thread::JoinHandle<Result<()>>>;
+type QueueSender = Sender<(Operation, Sender<ResponseVariant>)>;
+type QueueType = (WorkingThread, QueueSender);
+
+pub struct PersistentQueueWithCapacity(QueueType);
 
 fn start_op_loop(
     path: &str,
     max_elements: usize,
     max_inflight_ops: usize,
     db_options: rocksdb::Options,
-) -> (
-    Option<thread::JoinHandle<Result<()>>>,
-    Sender<(Operation, Sender<ResponseVariant>)>,
-) {
+) -> (WorkingThread, QueueSender) {
     let mut queue =
-        crate::PersistentQueueWithCapacity::new(&path, max_elements, db_options).unwrap();
+        crate::PersistentQueueWithCapacity::new(path, max_elements, db_options).unwrap();
     let (tx, rx) =
         crossbeam_channel::bounded::<(Operation, Sender<ResponseVariant>)>(max_inflight_ops);
     let handle = thread::spawn(move || {

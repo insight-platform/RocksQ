@@ -35,7 +35,7 @@ impl ResponseVariant {
                         Some(
                             results
                                 .iter()
-                                .map(|r| PyObject::from(PyBytes::new(py, &r)))
+                                .map(|r| PyObject::from(PyBytes::new(py, r)))
                                 .collect::<Vec<_>>(),
                         )
                     })
@@ -125,11 +125,10 @@ impl Response {
     ///   otherwise.
     ///
     fn try_get(&self) -> PyResult<Option<ResponseVariant>> {
-        Ok(self
-            .0
+        self.0
             .try_get()
             .map(|rvo| rvo.map(ResponseVariant))
-            .map_err(|e| PyRuntimeError::new_err(format!("Failed to get response: {}", e)))?)
+            .map_err(|e| PyRuntimeError::new_err(format!("Failed to get response: {}", e)))
     }
 
     /// Returns the response in a blocking way.
@@ -149,9 +148,10 @@ impl Response {
     fn get(&self) -> PyResult<ResponseVariant> {
         Python::with_gil(|py| {
             py.allow_threads(|| {
-                Ok(self.0.get().map(ResponseVariant).map_err(|e| {
-                    PyRuntimeError::new_err(format!("Failed to get response: {}", e))
-                })?)
+                self.0
+                    .get()
+                    .map(ResponseVariant)
+                    .map_err(|e| PyRuntimeError::new_err(format!("Failed to get response: {}", e)))
             })
         })
     }
@@ -181,7 +181,7 @@ pub struct PersistentQueueWithCapacity(queue_rs::nonblocking::PersistentQueueWit
 #[pymethods]
 impl PersistentQueueWithCapacity {
     #[new]
-    #[pyo3(signature=(path, max_elements = 1000_000_000, max_inflight_ops = 1000))]
+    #[pyo3(signature=(path, max_elements = 1_000_000_000, max_inflight_ops = 1_000))]
     fn new(path: &str, max_elements: usize, max_inflight_ops: usize) -> PyResult<Self> {
         let q = queue_rs::nonblocking::PersistentQueueWithCapacity::new(
             path,
@@ -261,13 +261,13 @@ impl PersistentQueueWithCapacity {
     #[pyo3(signature = (max_elements = 1, no_gil = true))]
     fn pop(&mut self, max_elements: usize, no_gil: bool) -> PyResult<Response> {
         Python::with_gil(|py| {
-            Ok(if no_gil {
+            if no_gil {
                 py.allow_threads(|| self.0.pop(max_elements))
             } else {
                 self.0.pop(max_elements)
             }
             .map(Response)
-            .map_err(|e| PyRuntimeError::new_err(format!("Failed to pop items: {}", e)))?)
+            .map_err(|e| PyRuntimeError::new_err(format!("Failed to pop items: {}", e)))
         })
     }
 
@@ -284,11 +284,10 @@ impl PersistentQueueWithCapacity {
     ///   the response object is useful to call for ``is_ready()``, ``try_get()`` and ``get()``.
     ///
     pub fn size(&self) -> PyResult<Response> {
-        Ok(self
-            .0
+        self.0
             .size()
             .map(Response)
-            .map_err(|e| PyRuntimeError::new_err(format!("Failed to get size: {}", e)))?)
+            .map_err(|e| PyRuntimeError::new_err(format!("Failed to get size: {}", e)))
     }
 
     /// Returns the length of the queue.
@@ -305,10 +304,9 @@ impl PersistentQueueWithCapacity {
     ///   the response object is useful to call for ``is_ready()``, ``try_get()`` and ``get()``.
     ///
     pub fn len(&self) -> PyResult<Response> {
-        Ok(self
-            .0
+        self.0
             .len()
             .map(Response)
-            .map_err(|e| PyRuntimeError::new_err(format!("Failed to get length: {}", e)))?)
+            .map_err(|e| PyRuntimeError::new_err(format!("Failed to get length: {}", e)))
     }
 }

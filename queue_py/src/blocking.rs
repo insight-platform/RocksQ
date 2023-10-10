@@ -23,7 +23,7 @@ pub struct PersistentQueueWithCapacity(queue_rs::blocking::PersistentQueueWithCa
 #[pymethods]
 impl PersistentQueueWithCapacity {
     #[new]
-    #[pyo3(signature=(path, max_elements = 1000_000_000))]
+    #[pyo3(signature=(path, max_elements = 1_000_000_000))]
     fn new(path: &str, max_elements: usize) -> PyResult<Self> {
         let queue = queue_rs::blocking::PersistentQueueWithCapacity::new(
             path,
@@ -98,7 +98,7 @@ impl PersistentQueueWithCapacity {
     #[pyo3(signature = (max_elements = 1, no_gil = true))]
     fn pop(&mut self, max_elements: usize, no_gil: bool) -> PyResult<Vec<PyObject>> {
         Python::with_gil(|py| {
-            Ok(if no_gil {
+            if no_gil {
                 py.allow_threads(|| self.0.pop(max_elements))
             } else {
                 self.0.pop(max_elements)
@@ -109,7 +109,7 @@ impl PersistentQueueWithCapacity {
                     .map(|r| PyObject::from(PyBytes::new(py, &r)))
                     .collect::<Vec<_>>()
             })
-            .map_err(|_| PyRuntimeError::new_err("Failed to pop item"))?)
+            .map_err(|_| PyRuntimeError::new_err("Failed to pop item"))
         })
     }
 

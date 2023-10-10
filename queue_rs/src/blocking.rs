@@ -8,7 +8,7 @@ pub struct PersistentQueueWithCapacity(Arc<Mutex<crate::PersistentQueueWithCapac
 
 impl PersistentQueueWithCapacity {
     pub fn new(path: &str, max_elements: usize, db_options: Options) -> Result<Self> {
-        let queue = crate::PersistentQueueWithCapacity::new(&path, max_elements, db_options)?;
+        let queue = crate::PersistentQueueWithCapacity::new(path, max_elements, db_options)?;
         let queue = Arc::new(Mutex::new(queue));
         Ok(Self(queue))
     }
