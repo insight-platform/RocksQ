@@ -37,7 +37,9 @@ pip install rocksq
 
 ## Usage
 
-See the examples in the [python](python) directory.
+See the examples in the [python](python) directory. 
+
+API docs are located at: [https://insight-platform.github.io/RocksQ/](https://insight-platform.github.io/RocksQ/).
 
 ## Performance
 
