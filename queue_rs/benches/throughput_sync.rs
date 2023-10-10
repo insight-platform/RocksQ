@@ -2,7 +2,7 @@
 
 extern crate test;
 
-use queue_rs::sync::PersistentQueueWithCapacity;
+use queue_rs::blocking::PersistentQueueWithCapacity;
 use rocksdb::Options;
 use test::Bencher;
 

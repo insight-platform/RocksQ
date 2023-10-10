@@ -10,7 +10,7 @@ Features:
 - supports only bytes-like objects;
 - can operate in a multithreaded environment efficiently (push and pop methods can release GIL if necessary);
 - keeps the state between restarts;
-- pop is non-blocking (returns None if the queue is empty);
+- two implementations: blocking and unblocking;
 
 What is not supported:
 
@@ -37,38 +37,7 @@ pip install rocksq
 
 ## Usage
 
-```python
-import time
-from rocksq import PersistentQueueWithCapacity
-
-# Create a queue that will persist to disk
-
-# try:
-#     PersistentQueue.remove_db('/tmp/queue')
-# except:
-#     pass
-
-q = PersistentQueueWithCapacity('/tmp/queue')
-
-buf = bytes(256 * 1024)
-
-OPS = 8 * 30
-RELEASE_GIL = True
-
-start = time.time()
-print("begin writing")
-for i in range(OPS):
-    q.push(buf, no_gil=RELEASE_GIL)
-
-print("begin reading")
-for i in range(OPS):
-    v = q.pop(no_gil=RELEASE_GIL)
-
-
-end = time.time()
-
-print("Time taken: %f" % (end - start))
-```
+See the examples in the [python](python) directory.
 
 ## Performance
 

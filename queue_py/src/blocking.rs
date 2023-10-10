@@ -4,14 +4,14 @@ use pyo3::types::PyBytes;
 use rocksdb::Options;
 
 #[pyclass]
-pub struct PersistentQueueWithCapacity(queue_rs::sync::PersistentQueueWithCapacity);
+pub struct PersistentQueueWithCapacity(queue_rs::blocking::PersistentQueueWithCapacity);
 
 #[pymethods]
 impl PersistentQueueWithCapacity {
     #[new]
     #[pyo3(signature=(path, max_elements = 1000_000_000))]
     fn new(path: &str, max_elements: usize) -> PyResult<Self> {
-        let queue = queue_rs::sync::PersistentQueueWithCapacity::new(
+        let queue = queue_rs::blocking::PersistentQueueWithCapacity::new(
             path,
             max_elements,
             Options::default(),
@@ -22,9 +22,9 @@ impl PersistentQueueWithCapacity {
         Ok(Self(queue))
     }
 
-    #[pyo3(signature = (item, no_gil = true))]
-    fn push(&mut self, item: Vec<&PyBytes>, no_gil: bool) -> PyResult<()> {
-        let data = item.iter().map(|e| e.as_bytes()).collect::<Vec<&[u8]>>();
+    #[pyo3(signature = (items, no_gil = true))]
+    fn push(&mut self, items: Vec<&PyBytes>, no_gil: bool) -> PyResult<()> {
+        let data = items.iter().map(|e| e.as_bytes()).collect::<Vec<&[u8]>>();
         Python::with_gil(|py| {
             let mut f = move || {
                 self.0
@@ -74,12 +74,5 @@ impl PersistentQueueWithCapacity {
 
     fn len(&self) -> usize {
         self.0.len()
-    }
-
-    #[staticmethod]
-    fn remove_db(path: &str) -> PyResult<()> {
-        queue_rs::PersistentQueueWithCapacity::remove_db(path).map_err(|e| {
-            PyRuntimeError::new_err(format!("Failed to remove persistent queue: {}", e))
-        })
     }
 }

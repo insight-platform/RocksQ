@@ -1,6 +1,6 @@
+pub mod blocking;
 mod fs;
-pub mod nonblock;
-pub mod sync;
+pub mod nonblocking;
 
 use anyhow::Result;
 use rocksdb::{Options, DB};

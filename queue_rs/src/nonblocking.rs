@@ -25,8 +25,12 @@ impl Response {
         !self.0.is_empty()
     }
 
-    pub fn try_get(&self) -> Result<ResponseVariant> {
-        Ok(self.0.try_recv()?)
+    pub fn try_get(&self) -> Result<Option<ResponseVariant>> {
+        let res = self.0.try_recv();
+        if let Err(crossbeam_channel::TryRecvError::Empty) = &res {
+            return Ok(None);
+        }
+        Ok(Some(res?))
     }
 
     pub fn get(&self) -> Result<ResponseVariant> {
@@ -62,8 +66,8 @@ fn start_op_loop(
                     let resp = queue.push(&value_slices);
                     resp_tx.send(ResponseVariant::Push(resp))?;
                 }
-                Ok((Operation::Pop(max_elts), resp_tx)) => {
-                    let resp = queue.pop(max_elts);
+                Ok((Operation::Pop(max_elements), resp_tx)) => {
+                    let resp = queue.pop(max_elements);
                     resp_tx.send(ResponseVariant::Pop(resp))?;
                 }
                 Ok((Operation::Length, resp_tx)) => {
@@ -102,7 +106,7 @@ impl PersistentQueueWithCapacity {
         !self.0 .0.as_ref().map(|t| t.is_finished()).unwrap_or(true)
     }
 
-    pub fn shutdown(&mut self) -> Result<()> {
+    fn shutdown(&mut self) -> Result<()> {
         if self.is_healthy() {
             let (tx, rx) = crossbeam_channel::bounded(1);
             self.0 .1.send((Operation::Stop, tx))?;
@@ -209,5 +213,17 @@ mod tests {
         let resp = queue.len().unwrap().get().unwrap();
         assert!(matches!(resp, super::ResponseVariant::Length(0)));
         _ = crate::PersistentQueueWithCapacity::remove_db(&path);
+    }
+
+    #[test]
+    fn size() {
+        let path = "/tmp/test_size".to_string();
+        _ = crate::PersistentQueueWithCapacity::remove_db(&path);
+        let queue =
+            super::PersistentQueueWithCapacity::new(&path, 1000, 1000, rocksdb::Options::default())
+                .unwrap();
+        let size_query = queue.size().unwrap();
+        let size = size_query.get().unwrap();
+        assert!(matches!(size, super::ResponseVariant::Size(Ok(r)) if r > 0));
     }
 }
