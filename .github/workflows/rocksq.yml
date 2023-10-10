@@ -65,7 +65,7 @@ jobs:
       - name: Install RocksDB
         run: |
           brew install rocksdb
-          brew install --with-clang llvm
+          brew install llvm
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
