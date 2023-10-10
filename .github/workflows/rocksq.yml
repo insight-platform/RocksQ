@@ -62,14 +62,16 @@ jobs:
       matrix:
         target: [ x86_64, aarch64 ]
     steps:
-      - name: Install RocksDB
-        run: |
-          brew install rocksdb
-          brew install llvm
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
+      - name: Install RocksDB
+        run: |
+          brew install rocksdb
+          brew install llvm
+      - name: Set environment variable
+        run: export CFLAGS=-stdlib=libc++
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
