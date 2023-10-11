@@ -25,9 +25,11 @@ It is implemented in Rust and PyO3, thus allows to release GIL when necessary. T
 
 ## Supported Platforms and Python Versions
 
-The library is automatically built for X86_64 and AARCH64 architectures with the Manylinux runtime.
+**Windows**: Python versions: 3.7-3.12.
 
-Python versions: 3.7-3.12. CI does not build for PyPy, but it should work if you build it manually.
+**Linux**: ManyLinux Python versions: 3.7-3.12. CI does not build for PyPy, but it should work if you build it manually.
+
+**MacOS**: Currently, I do not have MacOS environment to debug the build process in MacOS, all volounteers are welcome.
 
 ## Installation
 
