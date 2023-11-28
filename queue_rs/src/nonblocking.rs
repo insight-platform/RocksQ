@@ -139,7 +139,7 @@ impl PersistentQueueWithCapacity {
         Ok(Response(rx))
     }
 
-    pub fn push(&mut self, values: &[&[u8]]) -> Result<Response> {
+    pub fn push(&self, values: &[&[u8]]) -> Result<Response> {
         if !self.is_healthy() {
             return Err(anyhow::anyhow!(
                 "Queue is unhealthy: cannot use it anymore."
@@ -154,7 +154,7 @@ impl PersistentQueueWithCapacity {
         Ok(Response(rx))
     }
 
-    pub fn pop(&mut self, max_elements: usize) -> Result<Response> {
+    pub fn pop(&self, max_elements: usize) -> Result<Response> {
         if !self.is_healthy() {
             return Err(anyhow::anyhow!(
                 "Queue is unhealthy: cannot use it anymore."
@@ -192,7 +192,7 @@ mod tests {
     fn push_pop() {
         let path = "/tmp/test_push_pop".to_string();
         _ = crate::PersistentQueueWithCapacity::remove_db(&path);
-        let mut queue =
+        let queue =
             super::PersistentQueueWithCapacity::new(&path, 1000, 1000, rocksdb::Options::default())
                 .unwrap();
         assert!(queue.is_healthy());

@@ -25,11 +25,11 @@ impl PersistentQueueWithCapacity {
         self.0.lock().len()
     }
 
-    pub fn push(&mut self, values: &[&[u8]]) -> Result<()> {
+    pub fn push(&self, values: &[&[u8]]) -> Result<()> {
         self.0.lock().push(values)
     }
 
-    pub fn pop(&mut self, max_elts: usize) -> Result<Vec<Vec<u8>>> {
+    pub fn pop(&self, max_elts: usize) -> Result<Vec<Vec<u8>>> {
         self.0.lock().pop(max_elts)
     }
 

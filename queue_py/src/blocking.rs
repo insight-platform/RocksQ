@@ -57,10 +57,10 @@ impl PersistentQueueWithCapacity {
     /// None
     ///
     #[pyo3(signature = (items, no_gil = true))]
-    fn push(&mut self, items: Vec<&PyBytes>, no_gil: bool) -> PyResult<()> {
+    fn push(&self, items: Vec<&PyBytes>, no_gil: bool) -> PyResult<()> {
         let data = items.iter().map(|e| e.as_bytes()).collect::<Vec<&[u8]>>();
         Python::with_gil(|py| {
-            let mut f = move || {
+            let f = || {
                 self.0
                     .push(&data)
                     .map_err(|e| PyRuntimeError::new_err(format!("Failed to push item: {}", e)))
@@ -96,7 +96,7 @@ impl PersistentQueueWithCapacity {
     ///   The items retrieved from the queue.
     ///
     #[pyo3(signature = (max_elements = 1, no_gil = true))]
-    fn pop(&mut self, max_elements: usize, no_gil: bool) -> PyResult<Vec<PyObject>> {
+    fn pop(&self, max_elements: usize, no_gil: bool) -> PyResult<Vec<PyObject>> {
         Python::with_gil(|py| {
             if no_gil {
                 py.allow_threads(|| self.0.pop(max_elements))
