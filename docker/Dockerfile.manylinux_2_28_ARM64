@@ -1,4 +1,4 @@
-FROM ghcr.io/insight-platform/manylinux_2_28_arm64:v0.0.1 as chef
+FROM ghcr.io/insight-platform/manylinux_2_28_arm64:v0.0.3 as chef
 
 FROM chef as planner
 

@@ -6,7 +6,8 @@ pub enum Operation {
     Push(Vec<Vec<u8>>),
     Pop(usize),
     Length,
-    Size,
+    PayloadSize,
+    DiskSize,
     Stop,
 }
 
@@ -70,9 +71,13 @@ fn start_op_loop(
                     let resp = queue.len();
                     resp_tx.send(ResponseVariant::Length(resp))?;
                 }
-                Ok((Operation::Size, resp_tx)) => {
-                    let resp = queue.size();
+                Ok((Operation::DiskSize, resp_tx)) => {
+                    let resp = queue.disk_size();
                     resp_tx.send(ResponseVariant::Size(resp))?;
+                }
+                Ok((Operation::PayloadSize, resp_tx)) => {
+                    let resp = queue.payload_size();
+                    resp_tx.send(ResponseVariant::Size(Ok(resp as usize)))?;
                 }
                 Ok((Operation::Stop, resp_tx)) => {
                     resp_tx.send(ResponseVariant::Stop)?;
@@ -127,7 +132,17 @@ impl PersistentQueueWithCapacity {
         Ok(Response(rx))
     }
 
-    pub fn size(&self) -> Result<Response> {
+    pub fn inflight_ops(&self) -> Result<usize> {
+        if !self.is_healthy() {
+            return Err(anyhow::anyhow!(
+                "Queue is unhealthy: cannot use it anymore."
+            ));
+        }
+
+        Ok(self.0 .1.len())
+    }
+
+    pub fn disk_size(&self) -> Result<Response> {
         if !self.is_healthy() {
             return Err(anyhow::anyhow!(
                 "Queue is unhealthy: cannot use it anymore."
@@ -135,7 +150,19 @@ impl PersistentQueueWithCapacity {
         }
 
         let (tx, rx) = crossbeam_channel::bounded(1);
-        self.0 .1.send((Operation::Size, tx))?;
+        self.0 .1.send((Operation::DiskSize, tx))?;
+        Ok(Response(rx))
+    }
+
+    pub fn payload_size(&self) -> Result<Response> {
+        if !self.is_healthy() {
+            return Err(anyhow::anyhow!(
+                "Queue is unhealthy: cannot use it anymore."
+            ));
+        }
+
+        let (tx, rx) = crossbeam_channel::bounded(1);
+        self.0 .1.send((Operation::PayloadSize, tx))?;
         Ok(Response(rx))
     }
 
@@ -196,10 +223,16 @@ mod tests {
             super::PersistentQueueWithCapacity::new(&path, 1000, 1000, rocksdb::Options::default())
                 .unwrap();
         assert!(queue.is_healthy());
+
         let resp = queue.len().unwrap().get().unwrap();
         assert!(matches!(resp, super::ResponseVariant::Length(0)));
+
         let resp = queue.push(&[&[1u8, 2u8, 3u8]]).unwrap().get().unwrap();
         assert!(matches!(resp, super::ResponseVariant::Push(Ok(()))));
+
+        let resp = queue.payload_size().unwrap().get().unwrap();
+        assert!(matches!(resp, super::ResponseVariant::Size(Ok(3))));
+
         let resp = queue.len().unwrap().get().unwrap();
         assert!(matches!(resp, super::ResponseVariant::Length(1)));
         let resp = queue.pop(1).unwrap().get().unwrap();
@@ -218,7 +251,7 @@ mod tests {
         let queue =
             super::PersistentQueueWithCapacity::new(&path, 1000, 1000, rocksdb::Options::default())
                 .unwrap();
-        let size_query = queue.size().unwrap();
+        let size_query = queue.disk_size().unwrap();
         let size = size_query.get().unwrap();
         assert!(matches!(size, super::ResponseVariant::Size(Ok(r)) if r > 0));
     }

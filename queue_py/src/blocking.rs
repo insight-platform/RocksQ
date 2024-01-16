@@ -106,11 +106,17 @@ impl PersistentQueueWithCapacity {
             .map(|results| {
                 results
                     .into_iter()
-                    .map(|r| PyObject::from(PyBytes::new(py, &r)))
-                    .collect::<Vec<_>>()
+                    .map(|r| {
+                        PyBytes::new_with(py, r.len(), |b: &mut [u8]| {
+                            b.copy_from_slice(&r);
+                            Ok(())
+                        })
+                        .map(PyObject::from)
+                    })
+                    .collect::<PyResult<Vec<_>>>()
             })
             .map_err(|_| PyRuntimeError::new_err("Failed to pop item"))
-        })
+        })?
     }
 
     /// Checks if the queue is empty.
@@ -120,11 +126,12 @@ impl PersistentQueueWithCapacity {
     /// bool
     ///   ``True`` if the queue is empty, ``False`` otherwise.
     ///
+    #[getter]
     fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 
-    /// Returns the size of the queue in bytes.
+    /// Returns the disk size of the queue in bytes.
     ///
     /// Returns
     /// -------
@@ -135,14 +142,26 @@ impl PersistentQueueWithCapacity {
     /// PyRuntimeError
     ///   If the method fails.
     ///
-    fn size(&self) -> PyResult<usize> {
+    #[getter]
+    fn disk_size(&self) -> PyResult<usize> {
         Python::with_gil(|py| {
             py.allow_threads(|| {
-                self.0.size().map_err(|e| {
+                self.0.disk_size().map_err(|e| {
                     PyRuntimeError::new_err(format!("Failed to get queue size: {}", e))
                 })
             })
         })
+    }
+
+    /// Returns the size of the queue in bytes (only payload).
+    ///
+    /// Returns
+    /// -------
+    /// size : int
+    ///
+    #[getter]
+    fn payload_size(&self) -> u64 {
+        self.0.payload_size()
     }
 
     /// Returns the number of elements in the queue.
@@ -152,6 +171,7 @@ impl PersistentQueueWithCapacity {
     /// int
     ///   The number of elements in the queue.
     ///
+    #[getter]
     fn len(&self) -> usize {
         self.0.len()
     }

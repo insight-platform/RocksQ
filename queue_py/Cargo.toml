@@ -19,10 +19,10 @@ crate-type = ["cdylib", "lib"]
 queue_rs = { path = "../queue_rs" }
 
 [dependencies.pyo3]
-version = "0.19"
+version = "0.20"
 
 [dev-dependencies]
-serial_test = "2.0"
+serial_test = "3"
 
 [build-dependencies]
 pyo3-build-config = "0.19"

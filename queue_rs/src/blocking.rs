@@ -17,8 +17,12 @@ impl PersistentQueueWithCapacity {
         self.0.lock().is_empty()
     }
 
-    pub fn size(&self) -> Result<usize> {
-        self.0.lock().size()
+    pub fn disk_size(&self) -> Result<usize> {
+        self.0.lock().disk_size()
+    }
+
+    pub fn payload_size(&self) -> u64 {
+        self.0.lock().payload_size()
     }
 
     pub fn len(&self) -> usize {
