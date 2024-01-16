@@ -54,7 +54,7 @@ jobs:
           --directory build/html -cvf artifact.tar .
 
       - name: Upload artifact
-        uses: actions/upload-artifact@main
+        uses: actions/upload-artifact@v3
         with:
           name: github-pages
           path: docs/artifact.tar
