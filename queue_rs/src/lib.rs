@@ -13,6 +13,7 @@ pub fn version() -> &'static str {
 pub struct PersistentQueueWithCapacity {
     db: DB,
     path: String,
+    space_stat: u64,
     write_index: u64,
     read_index: u64,
     max_elements: u64,
@@ -21,11 +22,12 @@ pub struct PersistentQueueWithCapacity {
 const U64_BYTE_LEN: usize = 8;
 const WRITE_INDEX_CELL: u64 = u64::MAX;
 const READ_INDEX_CELL: u64 = u64::MAX - 1;
+const SPACE_STAT_CELL: u64 = u64::MAX - 2;
 
 #[cfg(test)]
 const MAX_ALLOWED_INDEX: u64 = 4;
 #[cfg(not(test))]
-const MAX_ALLOWED_INDEX: u64 = u64::MAX - 2;
+const MAX_ALLOWED_INDEX: u64 = u64::MAX - 100;
 
 // db_opts.set_write_buffer_size(64 * 1024 * 1024);
 // db_opts.set_max_write_buffer_number(5);
@@ -58,11 +60,22 @@ impl PersistentQueueWithCapacity {
             None => 0u64,
         };
 
+        let space_stat_opt = db.get(Self::index_to_key(SPACE_STAT_CELL))?;
+        let space_stat = match space_stat_opt {
+            Some(v) => {
+                let mut buf = [0u8; U64_BYTE_LEN];
+                buf.copy_from_slice(&v);
+                u64::from_le_bytes(buf)
+            }
+            None => 0u64,
+        };
+
         Ok(Self {
             db,
             path: path.to_string(),
             write_index,
             read_index,
+            space_stat,
             max_elements: max_elements as u64,
         })
     }
@@ -75,7 +88,7 @@ impl PersistentQueueWithCapacity {
         Ok(DB::destroy(&Options::default(), path)?)
     }
 
-    pub fn size(&self) -> Result<usize> {
+    pub fn disk_size(&self) -> Result<usize> {
         Ok(fs::dir_size(&self.path)?)
     }
 
@@ -85,6 +98,10 @@ impl PersistentQueueWithCapacity {
         } else {
             MAX_ALLOWED_INDEX - self.read_index + self.write_index
         }) as usize
+    }
+
+    pub fn payload_size(&self) -> u64 {
+        self.space_stat
     }
 
     pub fn is_empty(&self) -> bool {
@@ -109,6 +126,13 @@ impl PersistentQueueWithCapacity {
         batch.put(
             Self::index_to_key(WRITE_INDEX_CELL),
             self.write_index.to_le_bytes(),
+        );
+
+        self.space_stat += values.iter().map(|v| v.len() as u64).sum::<u64>();
+
+        batch.put(
+            Self::index_to_key(SPACE_STAT_CELL),
+            self.space_stat.to_le_bytes(),
         );
 
         self.db.write(batch)?;
@@ -141,6 +165,11 @@ impl PersistentQueueWithCapacity {
             }
         }
         if !res.is_empty() {
+            self.space_stat -= res.iter().map(|v| v.len() as u64).sum::<u64>();
+            batch.put(
+                Self::index_to_key(SPACE_STAT_CELL),
+                self.space_stat.to_le_bytes(),
+            );
             batch.put(
                 Self::index_to_key(READ_INDEX_CELL),
                 self.read_index.to_le_bytes(),
@@ -164,6 +193,7 @@ mod tests {
             db.push(&[&[1, 2, 3]]).unwrap();
             db.push(&[&[4, 5, 6]]).unwrap();
             assert_eq!(db.len(), 2);
+            assert_eq!(db.payload_size(), 6);
             assert!(matches!(db.pop(1), Ok(v ) if v == vec![vec![1, 2, 3]]));
             assert!(matches!(db.pop(1), Ok(v) if v == vec![vec![4, 5, 6]]));
             assert!(db.is_empty());
@@ -197,6 +227,7 @@ mod tests {
             db.push(&[&[1, 2, 3]]).unwrap();
             db.push(&[&[4, 5, 6]]).unwrap();
             assert!(matches!(db.push(&[&[1, 2, 3]]), Err(_)));
+            assert_eq!(db.payload_size(), 6);
         }
         PersistentQueueWithCapacity::remove_db(&path).unwrap();
     }
@@ -214,8 +245,10 @@ mod tests {
 
         {
             let mut db = PersistentQueueWithCapacity::new(&path, 10, Options::default()).unwrap();
+            assert_eq!(db.payload_size(), 9);
             let res = db.pop(1).unwrap();
             assert_eq!(res, vec![vec![1, 2, 3]]);
+            assert_eq!(db.payload_size(), 6);
         }
 
         {
