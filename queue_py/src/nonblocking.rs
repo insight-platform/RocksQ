@@ -27,22 +27,27 @@ impl ResponseVariant {
     ///
     #[getter]
     fn data(&self) -> PyResult<Option<Vec<PyObject>>> {
-        match &self.0 {
-            queue_rs::nonblocking::ResponseVariant::Pop(data) => Ok(data
-                .as_ref()
-                .map(|results| {
-                    Python::with_gil(|py| {
-                        Some(
-                            results
-                                .iter()
-                                .map(|r| PyObject::from(PyBytes::new(py, r)))
-                                .collect::<Vec<_>>(),
-                        )
+        Python::with_gil(|py| match &self.0 {
+            queue_rs::nonblocking::ResponseVariant::Pop(data) => Ok(Some(
+                data.as_ref()
+                    .map(|results| {
+                        results
+                            .iter()
+                            .map(|r| {
+                                PyBytes::new_with(py, r.len(), |b: &mut [u8]| {
+                                    b.copy_from_slice(r);
+                                    Ok(())
+                                })
+                                .map(PyObject::from)
+                            })
+                            .collect::<PyResult<Vec<_>>>()
                     })
-                })
-                .map_err(|e| PyRuntimeError::new_err(format!("Failed to get response: {}", e)))?),
+                    .map_err(|e| {
+                        PyRuntimeError::new_err(format!("Failed to get response: {}", e))
+                    })??,
+            )),
             _ => Ok(None),
-        }
+        })
     }
 
     /// Returns the length of the queue.
@@ -236,6 +241,13 @@ impl PersistentQueueWithCapacity {
         .map(Response)
     }
 
+    #[getter]
+    pub fn inflight_ops(&self) -> PyResult<usize> {
+        self.0
+            .inflight_ops()
+            .map_err(|e| PyRuntimeError::new_err(format!("Failed to get inflight ops: {}", e)))
+    }
+
     /// Retrieves items from the queue.
     ///
     /// **GIL**: the method can optionally be called without the GIL.
@@ -271,7 +283,7 @@ impl PersistentQueueWithCapacity {
         })
     }
 
-    /// Returns the number of elements in the queue.
+    /// Returns the disk size of the queue.
     ///
     /// Raises
     /// ------
@@ -283,9 +295,30 @@ impl PersistentQueueWithCapacity {
     ///   The future-like object which must be used to get the actual response. For the size operation,
     ///   the response object is useful to call for ``is_ready()``, ``try_get()`` and ``get()``.
     ///
-    pub fn size(&self) -> PyResult<Response> {
+    #[getter]
+    pub fn disk_size(&self) -> PyResult<Response> {
         self.0
-            .size()
+            .disk_size()
+            .map(Response)
+            .map_err(|e| PyRuntimeError::new_err(format!("Failed to get size: {}", e)))
+    }
+
+    /// Returns the payload size of the queue.
+    ///
+    /// Raises
+    /// ------
+    /// PyRuntimeError
+    ///
+    /// Returns
+    /// -------
+    /// :py:class:`Response`
+    ///   The future-like object which must be used to get the actual response. For the size operation,
+    ///   the response object is useful to call for ``is_ready()``, ``try_get()`` and ``get()``.
+    ///
+    #[getter]
+    pub fn payload_size(&self) -> PyResult<Response> {
+        self.0
+            .payload_size()
             .map(Response)
             .map_err(|e| PyRuntimeError::new_err(format!("Failed to get size: {}", e)))
     }
@@ -303,6 +336,7 @@ impl PersistentQueueWithCapacity {
     ///   The future-like object which must be used to get the actual response. For the length operation,
     ///   the response object is useful to call for ``is_ready()``, ``try_get()`` and ``get()``.
     ///
+    #[getter]
     pub fn len(&self) -> PyResult<Response> {
         self.0
             .len()
