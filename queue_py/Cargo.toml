@@ -36,5 +36,5 @@ extension-module = ["pyo3/extension-module"]
 default = ["extension-module"]
 
 [dependencies.rocksdb]
-version = "0.21"
+version = "0.22"
 default-features = false

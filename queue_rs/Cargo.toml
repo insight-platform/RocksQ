@@ -23,5 +23,5 @@ parking_lot = "0.12"
 crossbeam-channel = "0.5.8"
 
 [dependencies.rocksdb]
-version = "0.21"
+version = "0.22"
 default-features = false
