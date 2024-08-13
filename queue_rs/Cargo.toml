@@ -21,7 +21,12 @@ crate-type = ["cdylib", "lib"]
 anyhow = "1"
 parking_lot = "0.12"
 crossbeam-channel = "0.5.8"
+bincode = "2.0.0-rc.3"
+chrono = "0.4.38"
 
 [dependencies.rocksdb]
 version = "0.22"
 default-features = false
+
+[dev-dependencies]
+tempfile = "3.12.0"

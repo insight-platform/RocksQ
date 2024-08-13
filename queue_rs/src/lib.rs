@@ -1,7 +1,10 @@
 pub mod blocking;
 mod fs;
+pub mod mpmc;
 pub mod nonblocking;
+mod utilities;
 
+use crate::utilities::{index_to_key, next_index, u64_from_byte_vec};
 use anyhow::{anyhow, Result};
 use rocksdb::{Options, DB};
 use std::cmp::Ordering;
@@ -27,7 +30,7 @@ const READ_INDEX_CELL: u64 = u64::MAX - 1;
 const SPACE_STAT_CELL: u64 = u64::MAX - 2;
 
 #[cfg(test)]
-const MAX_ALLOWED_INDEX: u64 = 4;
+const MAX_ALLOWED_INDEX: u64 = 6;
 #[cfg(not(test))]
 const MAX_ALLOWED_INDEX: u64 = u64::MAX - 100;
 
@@ -48,37 +51,25 @@ impl PersistentQueueWithCapacity {
 
         let db = DB::open(&db_opts, path)?;
 
-        let write_index_opt = db.get(Self::index_to_key(WRITE_INDEX_CELL))?;
+        let write_index_opt = db.get(index_to_key(WRITE_INDEX_CELL))?;
         let write_index = match write_index_opt {
-            Some(v) => {
-                let mut buf = [0u8; U64_BYTE_LEN];
-                buf.copy_from_slice(&v);
-                u64::from_le_bytes(buf)
-            }
+            Some(v) => u64_from_byte_vec(&v),
             None => 0u64,
         };
 
-        let read_index_opt = db.get(Self::index_to_key(READ_INDEX_CELL))?;
+        let read_index_opt = db.get(index_to_key(READ_INDEX_CELL))?;
         let read_index = match read_index_opt {
-            Some(v) => {
-                let mut buf = [0u8; U64_BYTE_LEN];
-                buf.copy_from_slice(&v);
-                u64::from_le_bytes(buf)
-            }
+            Some(v) => u64_from_byte_vec(&v),
             None => 0u64,
         };
 
-        let space_stat_opt = db.get(Self::index_to_key(SPACE_STAT_CELL))?;
+        let space_stat_opt = db.get(index_to_key(SPACE_STAT_CELL))?;
         let space_stat = match space_stat_opt {
-            Some(v) => {
-                let mut buf = [0u8; U64_BYTE_LEN];
-                buf.copy_from_slice(&v);
-                u64::from_le_bytes(buf)
-            }
+            Some(v) => u64_from_byte_vec(&v),
             None => 0u64,
         };
 
-        let empty = db.get(Self::index_to_key(read_index))?.is_none();
+        let empty = db.get(index_to_key(read_index))?.is_none();
 
         Ok(Self {
             db,
@@ -89,10 +80,6 @@ impl PersistentQueueWithCapacity {
             max_elements: max_elements as u64,
             empty,
         })
-    }
-
-    fn index_to_key(index: u64) -> [u8; U64_BYTE_LEN] {
-        index.to_le_bytes()
     }
 
     pub fn remove_db(path: &str) -> Result<()> {
@@ -135,24 +122,15 @@ impl PersistentQueueWithCapacity {
         let mut write_index = self.write_index;
 
         for value in values {
-            batch.put(Self::index_to_key(write_index), value);
-            write_index += 1;
-            if write_index == MAX_ALLOWED_INDEX {
-                write_index = 0;
-            }
+            batch.put(index_to_key(write_index), value);
+            write_index = next_index(write_index);
         }
 
-        batch.put(
-            Self::index_to_key(WRITE_INDEX_CELL),
-            write_index.to_le_bytes(),
-        );
+        batch.put(index_to_key(WRITE_INDEX_CELL), write_index.to_le_bytes());
 
         let space_stat = self.space_stat + values.iter().map(|v| v.len() as u64).sum::<u64>();
 
-        batch.put(
-            Self::index_to_key(SPACE_STAT_CELL),
-            space_stat.to_le_bytes(),
-        );
+        batch.put(index_to_key(SPACE_STAT_CELL), space_stat.to_le_bytes());
 
         self.db.write(batch)?;
 
@@ -168,15 +146,12 @@ impl PersistentQueueWithCapacity {
         let mut batch = rocksdb::WriteBatch::default();
         let mut read_index = self.read_index;
         loop {
-            let key = Self::index_to_key(read_index);
+            let key = index_to_key(read_index);
             let value = self.db.get(key)?;
             if let Some(v) = value {
                 batch.delete(key);
                 res.push(v);
-                read_index += 1;
-                if read_index == MAX_ALLOWED_INDEX {
-                    read_index = 0;
-                }
+                read_index = next_index(read_index);
                 max_elts -= 1;
             } else {
                 break;
@@ -191,14 +166,8 @@ impl PersistentQueueWithCapacity {
         if !res.is_empty() {
             let empty = read_index == self.write_index;
             let space_stat = self.space_stat - res.iter().map(|v| v.len() as u64).sum::<u64>();
-            batch.put(
-                Self::index_to_key(SPACE_STAT_CELL),
-                space_stat.to_le_bytes(),
-            );
-            batch.put(
-                Self::index_to_key(READ_INDEX_CELL),
-                read_index.to_le_bytes(),
-            );
+            batch.put(index_to_key(SPACE_STAT_CELL), space_stat.to_le_bytes());
+            batch.put(index_to_key(READ_INDEX_CELL), read_index.to_le_bytes());
             self.db.write(batch)?;
 
             self.read_index = read_index;
@@ -226,20 +195,26 @@ mod tests {
             .unwrap();
             db.push(&[&[1, 2, 3]]).unwrap();
             db.push(&[&[4, 5, 6]]).unwrap();
-            assert_eq!(db.len(), 2);
-            assert_eq!(db.payload_size(), 6);
+            db.push(&[&[7, 8, 9]]).unwrap();
+            db.push(&[&[10, 11, 12]]).unwrap();
+            assert!(!db.is_empty());
+            assert_eq!(db.len(), 4);
+            assert_eq!(db.payload_size(), 12);
             assert!(matches!(db.pop(1), Ok(v ) if v == vec![vec![1, 2, 3]]));
             assert!(matches!(db.pop(1), Ok(v) if v == vec![vec![4, 5, 6]]));
+            assert!(matches!(db.pop(1), Ok(v) if v == vec![vec![7, 8, 9]]));
+            assert!(matches!(db.pop(1), Ok(v) if v == vec![vec![10, 11, 12]]));
             assert!(db.is_empty());
+            assert_eq!(db.len(), 0);
             db.push(&[&[1, 2, 3]]).unwrap();
             db.push(&[&[4, 5, 6]]).unwrap();
             db.push(&[&[7, 8, 9]]).unwrap();
             assert_eq!(db.len(), 3);
-            assert_eq!(db.read_index, 2);
+            assert_eq!(db.read_index, 4);
             assert_eq!(db.write_index, 1);
             assert!(matches!(db.pop(1), Ok(v) if v == vec![vec![1, 2, 3]]));
             assert_eq!(db.len(), 2);
-            assert_eq!(db.read_index, 3);
+            assert_eq!(db.read_index, 5);
             assert_eq!(db.write_index, 1);
             assert!(matches!(db.pop(1), Ok(v) if v == vec![vec![4, 5, 6]]));
             assert_eq!(db.len(), 1);
@@ -248,6 +223,8 @@ mod tests {
             let data = db.pop(1).unwrap();
             assert!(db.is_empty());
             assert_eq!(db.len(), 0);
+            assert_eq!(db.read_index, 1);
+            assert_eq!(db.write_index, 1);
             assert_eq!(data, vec![vec![7, 8, 9]]);
         }
         PersistentQueueWithCapacity::remove_db(&path).unwrap();
