@@ -207,7 +207,7 @@ mod tests {
         let path = "/tmp/test_fresh_healthy".to_string();
         _ = crate::PersistentQueueWithCapacity::remove_db(&path);
         let queue =
-            super::PersistentQueueWithCapacity::new(&path, 1000, 1000, rocksdb::Options::default())
+            super::PersistentQueueWithCapacity::new(&path, 3, 1000, rocksdb::Options::default())
                 .unwrap();
         assert!(queue.is_healthy());
         let resp = queue.len().unwrap().get().unwrap();
@@ -220,7 +220,7 @@ mod tests {
         let path = "/tmp/test_push_pop".to_string();
         _ = crate::PersistentQueueWithCapacity::remove_db(&path);
         let queue =
-            super::PersistentQueueWithCapacity::new(&path, 1000, 1000, rocksdb::Options::default())
+            super::PersistentQueueWithCapacity::new(&path, 3, 1000, rocksdb::Options::default())
                 .unwrap();
         assert!(queue.is_healthy());
 
@@ -249,7 +249,7 @@ mod tests {
         let path = "/tmp/test_size".to_string();
         _ = crate::PersistentQueueWithCapacity::remove_db(&path);
         let queue =
-            super::PersistentQueueWithCapacity::new(&path, 1000, 1000, rocksdb::Options::default())
+            super::PersistentQueueWithCapacity::new(&path, 3, 1000, rocksdb::Options::default())
                 .unwrap();
         let size_query = queue.disk_size().unwrap();
         let size = size_query.get().unwrap();
