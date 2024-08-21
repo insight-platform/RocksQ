@@ -36,7 +36,7 @@ pub enum MpmcOperation {
 
 pub enum MpmcResponseVariant {
     Add(Result<()>),
-    Next(Result<Vec<Vec<u8>>>),
+    Next(Result<(Vec<Vec<u8>>, bool)>),
     Length(usize),
     Size(Result<usize>),
     GetLabels(Vec<String>),
@@ -463,7 +463,7 @@ mod tests {
             .get()
             .unwrap();
         assert!(
-            matches!(resp, super::MpmcResponseVariant::Next(Ok(v)) if v == vec![vec![1u8, 2u8, 3u8]])
+            matches!(resp, super::MpmcResponseVariant::Next(Ok(v)) if v == (vec![vec![1u8, 2u8, 3u8]], false))
         );
         let resp = queue.len().unwrap().get().unwrap();
         assert!(matches!(resp, super::MpmcResponseVariant::Length(1)));

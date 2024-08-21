@@ -367,18 +367,19 @@ impl MpmcResponseVariant {
     ///
     /// Returns
     /// -------
-    /// list of bytes
+    /// (list of bytes, bool)
     ///   The data for the ``next()`` operation if the operation was successful,
     /// ``None``
     ///   if the future doesn't represent the ``next()`` operation.
     ///
     #[getter]
-    fn data(&self) -> PyResult<Option<Vec<PyObject>>> {
+    fn data(&self) -> PyResult<Option<(Vec<PyObject>, bool)>> {
         Python::with_gil(|py| match &self.0 {
             queue_rs::nonblocking::MpmcResponseVariant::Next(data) => Ok(Some(
                 data.as_ref()
-                    .map(|results| {
-                        results
+                    .map(|result| {
+                        result
+                            .0
                             .iter()
                             .map(|r| {
                                 PyBytes::new_bound_with(py, r.len(), |b: &mut [u8]| {
@@ -388,6 +389,7 @@ impl MpmcResponseVariant {
                                 .map(PyObject::from)
                             })
                             .collect::<PyResult<Vec<_>>>()
+                            .map(|e| (e, result.1))
                     })
                     .map_err(|e| {
                         PyRuntimeError::new_err(format!("Failed to get response: {}", e))

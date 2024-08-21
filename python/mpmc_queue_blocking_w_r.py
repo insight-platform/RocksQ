@@ -23,8 +23,9 @@ for i in range(OPS):
 
 for i in range(OPS):
     v = q.next(label=LABEL, start_position=StartPosition.Oldest, max_elements=NUM, no_gil=RELEASE_GIL)
-    assert len(v) == NUM
-    assert v == [bytes(str(i), 'utf-8')]
+    assert len(v[0]) == NUM
+    assert v[0] == [bytes(str(i), 'utf-8')]
+    assert not v[1]
 
 end = time.time()
 
