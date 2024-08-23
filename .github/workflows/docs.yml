@@ -27,9 +27,9 @@ jobs:
   build-docs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
@@ -54,7 +54,7 @@ jobs:
           --directory build/html -cvf artifact.tar .
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: github-pages
           path: docs/artifact.tar
@@ -70,9 +70,8 @@ jobs:
 
     steps:
       - name: Setup Pages
-        uses: actions/configure-pages@v1
+        uses: actions/configure-pages@v5
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v1
-
+        uses: actions/deploy-pages@v4

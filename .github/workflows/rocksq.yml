@@ -39,16 +39,16 @@ jobs:
       - self-hosted
       - ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up docker buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Build docker image
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v6
         with:
           file: ${{ matrix.docker_file }}
           platforms: ${{ matrix.arch }}
@@ -61,9 +61,9 @@ jobs:
         run: docker run --rm -v $(pwd)/distfiles:/tmp rocksq cp -R /opt/dist /tmp
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheels-${{ matrix.runner }}
           path: distfiles/dist
 
       - name: Publish to PyPI
@@ -82,8 +82,8 @@ jobs:
         target: [x64]
         python: ["3.8", "3.9", "3.10", "3.11", "3.12"]
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
           architecture: ${{ matrix.target }}
@@ -95,9 +95,9 @@ jobs:
           args: --release --out dist --find-interpreter
           sccache: 'true'
       - name: Upload wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheels-windows-${{ matrix.python }}
           path: queue_py/dist
       - name: Publish to PyPI
         if: "startsWith(github.ref, 'refs/tags/')"
