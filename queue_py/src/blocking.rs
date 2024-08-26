@@ -189,10 +189,10 @@ impl PersistentQueueWithCapacity {
 /// path : str
 ///   The path to the queue.
 /// ttl : int
-///   The amount of seconds after which the element in the queue will be removed. Ttl is non-strict
-///   meaning that it is guaranteed that the element inserted will remain in the queue for at least
-///   ttl amount of time and the queue will make efforts to remove the element as soon as possible
-///   after ttl seconds of its insertion.
+///   The amount of seconds after which the element in the queue will be removed. TTL is not strict.
+///   It means that the element will remain in the queue for TTL seconds after insertion and the
+///   queue will make efforts to remove the element after TTL seconds but it is not guaranteed to be
+///   done immediately. Thus, consumers can retrieve expired but not removed elements.
 ///
 /// Raises
 /// ------
