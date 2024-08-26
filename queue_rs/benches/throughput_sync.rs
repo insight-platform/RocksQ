@@ -14,7 +14,7 @@ fn rw_mixed(b: &mut Bencher) {
     let path = "/tmp/test_b1".to_string();
     _ = PersistentQueueWithCapacity::remove_db(&path);
     {
-        let mut db = PersistentQueueWithCapacity::new(&path, COUNT, Options::default()).unwrap();
+        let db = PersistentQueueWithCapacity::new(&path, COUNT, Options::default()).unwrap();
         b.iter(|| {
             for _ in 0..COUNT {
                 db.push(&[&block]).unwrap();
@@ -31,7 +31,7 @@ fn write_read(b: &mut Bencher) {
     let path = "/tmp/test_b2".to_string();
     _ = PersistentQueueWithCapacity::remove_db(&path);
     {
-        let mut db = PersistentQueueWithCapacity::new(&path, COUNT, Options::default()).unwrap();
+        let db = PersistentQueueWithCapacity::new(&path, COUNT, Options::default()).unwrap();
         b.iter(|| {
             for _ in 0..COUNT {
                 db.push(&[&block]).unwrap();
