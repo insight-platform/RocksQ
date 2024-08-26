@@ -1,7 +1,7 @@
-use crate::StartPosition;
+use crate::{pylist_to_vec_of_byte_vec, value_as_slice, StartPosition};
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
-use pyo3::types::PyBytes;
+use pyo3::types::{PyBytes, PyList};
 use queue_rs::mpmc;
 use rocksdb::Options;
 use std::time::Duration;
@@ -60,8 +60,9 @@ impl PersistentQueueWithCapacity {
     /// None
     ///
     #[pyo3(signature = (items, no_gil = true))]
-    fn push(&self, items: Vec<&PyBytes>, no_gil: bool) -> PyResult<()> {
-        let data = items.iter().map(|e| e.as_bytes()).collect::<Vec<&[u8]>>();
+    fn push(&self, items: &Bound<'_, PyList>, no_gil: bool) -> PyResult<()> {
+        let items = pylist_to_vec_of_byte_vec(items);
+        let data = value_as_slice(&items);
         Python::with_gil(|py| {
             let f = || {
                 self.0
@@ -110,7 +111,7 @@ impl PersistentQueueWithCapacity {
                 results
                     .into_iter()
                     .map(|r| {
-                        PyBytes::new_with(py, r.len(), |b: &mut [u8]| {
+                        PyBytes::new_bound_with(py, r.len(), |b: &mut [u8]| {
                             b.copy_from_slice(&r);
                             Ok(())
                         })
@@ -232,8 +233,9 @@ impl MpmcQueue {
     /// None
     ///
     #[pyo3(signature = (items, no_gil = true))]
-    fn add(&self, items: Vec<&PyBytes>, no_gil: bool) -> PyResult<()> {
-        let data = items.iter().map(|e| e.as_bytes()).collect::<Vec<&[u8]>>();
+    fn add(&self, items: &Bound<'_, PyList>, no_gil: bool) -> PyResult<()> {
+        let items = pylist_to_vec_of_byte_vec(items);
+        let data = value_as_slice(&items);
         Python::with_gil(|py| {
             let f = || {
                 self.0
@@ -301,7 +303,7 @@ impl MpmcQueue {
                 results
                     .into_iter()
                     .map(|r| {
-                        PyBytes::new_with(py, r.len(), |b: &mut [u8]| {
+                        PyBytes::new_bound_with(py, r.len(), |b: &mut [u8]| {
                             b.copy_from_slice(&r);
                             Ok(())
                         })

@@ -19,14 +19,14 @@ crate-type = ["cdylib", "lib"]
 queue_rs = { path = "../queue_rs" }
 
 [dependencies.pyo3]
-version = "0.20"
+version = "0.22.2"
 
 [dev-dependencies]
 serial_test = "3"
 
 [build-dependencies]
-pyo3-build-config = "0.19"
-cbindgen = "0.24"
+pyo3-build-config = "0.22.2"
+cbindgen = "0.27.0"
 
 [package.metadata.maturin]
 python-source = "python"
