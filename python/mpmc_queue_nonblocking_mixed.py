@@ -23,19 +23,22 @@ for i in range(OPS):
     data = [bytes(str(i), 'utf-8')]
     q.add(data, no_gil=RELEASE_GIL).get()
     v = q.next(label=LABEL_ONE, start_position=StartPosition.Oldest, max_elements=NUM, no_gil=RELEASE_GIL).get().data
-    assert len(v) == NUM
-    assert v == data
+    assert len(v[0]) == NUM
+    assert v[0] == data
+    assert not v[1]
 
 end = time.time()
 
 print("Time taken: %f" % (end - start))
 
 v = q.next(label=LABEL_ONE, start_position=StartPosition.Oldest, max_elements=NUM, no_gil=RELEASE_GIL).get().data
-assert len(v) == 0
+assert len(v[0]) == 0
+assert not v[1]
 
 v = q.next(label=LABEL_TWO, start_position=StartPosition.Newest, max_elements=NUM, no_gil=RELEASE_GIL).get().data
-assert len(v) == NUM
-assert v == [bytes(str(OPS-1), 'utf-8')]
+assert len(v[0]) == NUM
+assert v[0] == [bytes(str(OPS-1), 'utf-8')]
+assert not v[1]
 
 labels = q.labels.get().labels
 assert len(labels) == 2
@@ -54,5 +57,6 @@ assert LABEL_ONE not in labels
 assert LABEL_TWO in labels
 
 v = q.next(label=LABEL_ONE, start_position=StartPosition.Oldest, max_elements=NUM, no_gil=RELEASE_GIL).get().data
-assert len(v) == NUM
-assert v == [bytes(str(0), 'utf-8')]
+assert len(v[0]) == NUM
+assert v[0] == [bytes(str(0), 'utf-8')]
+assert not v[1]

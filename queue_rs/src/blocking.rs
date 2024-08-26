@@ -79,7 +79,7 @@ impl MpmcQueue {
         max_elts: usize,
         label: &str,
         start_position: StartPosition,
-    ) -> Result<Vec<Vec<u8>>> {
+    ) -> Result<(Vec<Vec<u8>>, bool)> {
         self.0.lock().next(max_elts, label, start_position)
     }
 

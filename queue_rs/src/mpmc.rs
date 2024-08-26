@@ -199,7 +199,7 @@ impl MpmcQueue {
         max_elts: usize,
         label: &str,
         start_position: StartPosition,
-    ) -> Result<Vec<Vec<u8>>> {
+    ) -> Result<(Vec<Vec<u8>>, bool)> {
         let mut res = Vec::with_capacity(max_elts);
 
         self.actualize_indices()?;
@@ -239,14 +239,15 @@ impl MpmcQueue {
             reader.index = next_index(reader.index);
             end = reader.index == self.write_index;
         }
+
         reader.end_timestamp = if end {
             Some(self.write_timestamp)
         } else {
             None
         };
-        // for future to let the user know
-        let _expired = reader.expired;
+        let expired = reader.expired;
         reader.expired = false;
+
         if !self.read_indices.get(&label).is_some_and(|e| *e == reader) {
             self.db.put_cf(
                 reader_cf,
@@ -257,7 +258,7 @@ impl MpmcQueue {
             self.read_indices.insert(label, reader);
         }
 
-        Ok(res)
+        Ok((res, expired))
     }
 
     pub fn get_labels(&self) -> Vec<String> {
@@ -516,7 +517,8 @@ mod tests {
         test(ttl, |mut queue| {
             let result = queue.next(100, label, StartPosition::Oldest).unwrap();
 
-            assert_eq!(result.is_empty(), true);
+            assert_eq!(result.0.is_empty(), true);
+            assert_eq!(result.1, false);
             assert_eq!(
                 queue.read_indices,
                 HashMap::from([(
@@ -535,7 +537,8 @@ mod tests {
         test(ttl, |mut queue| {
             let result = queue.next(100, label, StartPosition::Newest).unwrap();
 
-            assert_eq!(result.is_empty(), true);
+            assert_eq!(result.0.is_empty(), true);
+            assert_eq!(result.1, false);
             assert_eq!(
                 queue.read_indices,
                 HashMap::from([(
@@ -560,7 +563,8 @@ mod tests {
 
             let result = queue.next(2, label, start_position).unwrap();
 
-            assert_eq!(result, vec![value_one.to_vec(), value_two.to_vec()]);
+            assert_eq!(result.0, vec![value_one.to_vec(), value_two.to_vec()]);
+            assert_eq!(result.1, false);
             assert_eq!(
                 queue.read_indices,
                 HashMap::from([(label.to_string(), Reader::new(2, None, false))])
@@ -568,7 +572,8 @@ mod tests {
 
             let result = queue.next(2, label, start_position).unwrap();
 
-            assert_eq!(result, vec![value_three.to_vec()]);
+            assert_eq!(result.0, vec![value_three.to_vec()]);
+            assert_eq!(result.1, false);
             assert_eq!(
                 queue.read_indices,
                 HashMap::from([(
@@ -593,7 +598,8 @@ mod tests {
 
             let result = queue.next(2, label, start_position).unwrap();
 
-            assert_eq!(result, vec![value_three.to_vec()]);
+            assert_eq!(result.0, vec![value_three.to_vec()]);
+            assert_eq!(result.1, false);
             assert_eq!(
                 queue.read_indices,
                 HashMap::from([(
@@ -604,7 +610,8 @@ mod tests {
 
             let result = queue.next(2, label, start_position).unwrap();
 
-            assert_eq!(result.is_empty(), true);
+            assert_eq!(result.0.is_empty(), true);
+            assert_eq!(result.1, false);
             assert_eq!(
                 queue.read_indices,
                 HashMap::from([(
@@ -629,7 +636,8 @@ mod tests {
 
             let result = queue.next(1, label, StartPosition::Newest).unwrap();
 
-            assert_eq!(result, vec![last_value.to_vec()]);
+            assert_eq!(result.0, vec![last_value.to_vec()]);
+            assert_eq!(result.1, false);
             assert_eq!(
                 queue.read_indices,
                 HashMap::from([(
@@ -640,7 +648,8 @@ mod tests {
 
             let result = queue.next(1, label, StartPosition::Newest).unwrap();
 
-            assert_eq!(result.is_empty(), true);
+            assert_eq!(result.0.is_empty(), true);
+            assert_eq!(result.1, false);
             assert_eq!(
                 queue.read_indices,
                 HashMap::from([(
@@ -664,7 +673,8 @@ mod tests {
 
             let result = queue.next(2, label_one, StartPosition::Oldest).unwrap();
 
-            assert_eq!(result.is_empty(), true);
+            assert_eq!(result.0.is_empty(), true);
+            assert_eq!(result.1, false);
             assert_eq!(queue.start_index, 2);
             assert_eq!(queue.write_index, 2);
             assert_eq!(
@@ -699,8 +709,10 @@ mod tests {
             // expire all
             wait_and_expire(&mut queue, ttl.mul(2));
 
-            queue.next(1, label_two, StartPosition::Oldest).unwrap();
+            let result = queue.next(1, label_two, StartPosition::Oldest).unwrap();
 
+            assert_eq!(result.0.is_empty(), true);
+            assert_eq!(result.1, false);
             assert_eq!(queue.start_index, 2);
             assert_eq!(queue.write_index, 2);
             assert_eq!(
@@ -718,6 +730,42 @@ mod tests {
             );
             assert_eq!(queue.empty, true);
             assert_eq!(queue.len(), 0);
+
+            let result = queue.next(1, label_one, StartPosition::Oldest).unwrap();
+
+            assert_eq!(result.0.is_empty(), true);
+            assert_eq!(result.1, true);
+            assert_eq!(
+                queue.read_indices,
+                HashMap::from([
+                    (
+                        label_one.to_string(),
+                        Reader::new(2, Some(queue.write_timestamp), false)
+                    ),
+                    (
+                        label_two.to_string(),
+                        Reader::new(2, Some(queue.write_timestamp), false)
+                    )
+                ])
+            );
+
+            let result = queue.next(1, label_one, StartPosition::Oldest).unwrap();
+
+            assert_eq!(result.0.is_empty(), true);
+            assert_eq!(result.1, false);
+            assert_eq!(
+                queue.read_indices,
+                HashMap::from([
+                    (
+                        label_one.to_string(),
+                        Reader::new(2, Some(queue.write_timestamp), false)
+                    ),
+                    (
+                        label_two.to_string(),
+                        Reader::new(2, Some(queue.write_timestamp), false)
+                    )
+                ])
+            );
         });
     }
 
@@ -734,7 +782,8 @@ mod tests {
 
             let result = queue.next(2, label_one, StartPosition::Newest).unwrap();
 
-            assert_eq!(result.is_empty(), true);
+            assert_eq!(result.0.is_empty(), true);
+            assert_eq!(result.1, false);
             assert_eq!(queue.start_index, 2);
             assert_eq!(queue.write_index, 2);
             assert_eq!(
@@ -769,8 +818,10 @@ mod tests {
             // expire all
             wait_and_expire(&mut queue, ttl.mul(2));
 
-            queue.next(1, label_two, StartPosition::Newest).unwrap();
+            let result = queue.next(1, label_two, StartPosition::Newest).unwrap();
 
+            assert_eq!(result.0.is_empty(), true);
+            assert_eq!(result.1, false);
             assert_eq!(queue.start_index, 2);
             assert_eq!(queue.write_index, 2);
             assert_eq!(
@@ -788,6 +839,42 @@ mod tests {
             );
             assert_eq!(queue.empty, true);
             assert_eq!(queue.len(), 0);
+
+            let result = queue.next(1, label_one, StartPosition::Oldest).unwrap();
+
+            assert_eq!(result.0.is_empty(), true);
+            assert_eq!(result.1, true);
+            assert_eq!(
+                queue.read_indices,
+                HashMap::from([
+                    (
+                        label_one.to_string(),
+                        Reader::new(2, Some(queue.write_timestamp), false)
+                    ),
+                    (
+                        label_two.to_string(),
+                        Reader::new(2, Some(queue.write_timestamp), false)
+                    )
+                ])
+            );
+
+            let result = queue.next(1, label_one, StartPosition::Oldest).unwrap();
+
+            assert_eq!(result.0.is_empty(), true);
+            assert_eq!(result.1, false);
+            assert_eq!(
+                queue.read_indices,
+                HashMap::from([
+                    (
+                        label_one.to_string(),
+                        Reader::new(2, Some(queue.write_timestamp), false)
+                    ),
+                    (
+                        label_two.to_string(),
+                        Reader::new(2, Some(queue.write_timestamp), false)
+                    )
+                ])
+            );
         });
     }
 
@@ -811,7 +898,8 @@ mod tests {
 
             let result = queue.next(1, label, StartPosition::Oldest).unwrap();
 
-            assert_eq!(result, vec![value]);
+            assert_eq!(result.0, vec![value]);
+            assert_eq!(result.1, false);
             assert_eq!(queue.start_index, 1);
             assert_eq!(queue.write_index, 3);
             assert_eq!(
@@ -843,7 +931,8 @@ mod tests {
 
             let result = queue.next(1, label, StartPosition::Newest).unwrap();
 
-            assert_eq!(result, vec![value]);
+            assert_eq!(result.0, vec![value]);
+            assert_eq!(result.1, false);
             assert_eq!(queue.start_index, 1);
             assert_eq!(queue.write_index, 3);
             assert_eq!(
@@ -881,13 +970,24 @@ mod tests {
             queue.add(&[value_three, value_four]).unwrap();
 
             // read < write, start > read
-            queue.next(1, label_one, start_position).unwrap();
+            let result = queue.next(1, label_one, start_position).unwrap();
+            assert_eq!(result.0, vec![value_one]);
+            assert_eq!(result.1, false);
             // read < write, start = read
-            queue.next(2, label_two, start_position).unwrap();
+            let result = queue.next(2, label_two, start_position).unwrap();
+            assert_eq!(result.0, vec![value_one, value_two]);
+            assert_eq!(result.1, false);
             // read < write, start < read
-            queue.next(3, label_three, start_position).unwrap();
+            let result = queue.next(3, label_three, start_position).unwrap();
+            assert_eq!(result.0, vec![value_one, value_two, value_three]);
+            assert_eq!(result.1, false);
             // read = write
-            queue.next(4, label_four, start_position).unwrap();
+            let result = queue.next(4, label_four, start_position).unwrap();
+            assert_eq!(
+                result.0,
+                vec![value_one, value_two, value_three, value_four]
+            );
+            assert_eq!(result.1, false);
 
             assert_eq!(queue.start_index, 0);
             assert_eq!(queue.write_index, 4);
@@ -908,7 +1008,9 @@ mod tests {
 
             wait_and_expire(&mut queue, quarter_ttl.mul(2));
 
-            queue.next(1, label_five, start_position).unwrap();
+            let result = queue.next(1, label_five, start_position).unwrap();
+            assert_eq!(result.0, vec![value_three]);
+            assert_eq!(result.1, false);
 
             assert_eq!(queue.start_index, 2);
             assert_eq!(queue.write_index, 4);
@@ -930,7 +1032,9 @@ mod tests {
 
             wait_and_expire(&mut queue, quarter_ttl.mul(3));
 
-            queue.next(1, label_five, start_position).unwrap();
+            let result = queue.next(1, label_five, start_position).unwrap();
+            assert_eq!(result.0.is_empty(), true);
+            assert_eq!(result.1, true);
 
             assert_eq!(queue.start_index, 4);
             assert_eq!(queue.write_index, 4);
@@ -988,7 +1092,9 @@ mod tests {
             // expire all to emulate write index < start index
             wait_and_expire(&mut queue, quarter_ttl.mul(5));
 
-            queue.next(1, label_one, start_position).unwrap();
+            let result = queue.next(1, label_one, start_position).unwrap();
+            assert_eq!(result.0.is_empty(), true);
+            assert_eq!(result.1, false);
 
             assert_eq!(queue.start_index, 2);
             assert_eq!(queue.write_index, 2);
@@ -1011,16 +1117,44 @@ mod tests {
                 .add(&[value_three, value_four, value_five, value_six])
                 .unwrap();
             // read > write, start > read
-            queue.next(1, label_one, start_position).unwrap();
+            let result = queue.next(1, label_one, start_position).unwrap();
+            assert_eq!(result.0, vec![value_one]);
+            assert_eq!(result.1, false);
             // read > write, start = read
-            queue.next(2, label_two, start_position).unwrap();
+            let result = queue.next(2, label_two, start_position).unwrap();
+            assert_eq!(result.0, vec![value_one, value_two]);
+            assert_eq!(result.1, false);
             // read > write, start < read
-            queue.next(3, label_three, start_position).unwrap();
+            let result = queue.next(3, label_three, start_position).unwrap();
+            assert_eq!(result.0, vec![value_one, value_two, value_three]);
+            assert_eq!(result.1, false);
             // read < write, start > read
-            queue.next(4, label_four, start_position).unwrap();
-            queue.next(5, label_five, start_position).unwrap();
+            let result = queue.next(4, label_four, start_position).unwrap();
+            assert_eq!(
+                result.0,
+                vec![value_one, value_two, value_three, value_four]
+            );
+            assert_eq!(result.1, false);
+            let result = queue.next(5, label_five, start_position).unwrap();
+            assert_eq!(
+                result.0,
+                vec![value_one, value_two, value_three, value_four, value_five]
+            );
+            assert_eq!(result.1, false);
             // read == write
-            queue.next(6, label_six, start_position).unwrap();
+            let result = queue.next(6, label_six, start_position).unwrap();
+            assert_eq!(
+                result.0,
+                vec![
+                    value_one,
+                    value_two,
+                    value_three,
+                    value_four,
+                    value_five,
+                    value_six
+                ]
+            );
+            assert_eq!(result.1, false);
 
             assert_eq!(queue.start_index, 2);
             assert_eq!(queue.write_index, 2);
@@ -1044,7 +1178,9 @@ mod tests {
             // expire value one and value two
             wait_and_expire(&mut queue, quarter_ttl.mul(2));
 
-            queue.next(1, label_five, start_position).unwrap();
+            let result = queue.next(1, label_five, start_position).unwrap();
+            assert_eq!(result.0, vec![value_six]);
+            assert_eq!(result.1, false);
 
             assert_eq!(queue.start_index, 4);
             assert_eq!(queue.write_index, 2);
@@ -1071,7 +1207,9 @@ mod tests {
             // expire all elements
             wait_and_expire(&mut queue, quarter_ttl.mul(3));
 
-            queue.next(1, label_five, start_position).unwrap();
+            let result = queue.next(1, label_five, start_position).unwrap();
+            assert_eq!(result.0.is_empty(), true);
+            assert_eq!(result.1, false);
 
             assert_eq!(queue.start_index, 2);
             assert_eq!(queue.write_index, 2);
@@ -1189,7 +1327,8 @@ mod tests {
 
             let result = queue.next(2, label, StartPosition::Oldest).unwrap();
 
-            assert_eq!(result, vec![value_three, value_four]);
+            assert_eq!(result.0, vec![value_three, value_four]);
+            assert_eq!(result.1, true);
             assert_eq!(queue.start_index, 0);
             assert_eq!(queue.write_index, 4);
             assert_eq!(
@@ -1224,7 +1363,8 @@ mod tests {
 
             let result = queue.next(4, label, StartPosition::Oldest).unwrap();
 
-            assert_eq!(result.is_empty(), true);
+            assert_eq!(result.0.is_empty(), true);
+            assert_eq!(result.1, true);
             assert_eq!(queue.start_index, 0);
             assert_eq!(queue.write_index, 4);
             assert_eq!(

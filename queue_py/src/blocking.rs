@@ -280,6 +280,8 @@ impl MpmcQueue {
     /// -------
     /// items : list of bytes
     ///   The items retrieved from the queue.
+    /// expired : bool
+    ///   True if some elements are expired between the last and this call of the method.
     ///
     #[pyo3(signature = (label, start_position, max_elements = 1, no_gil = true))]
     fn next(
@@ -288,7 +290,7 @@ impl MpmcQueue {
         start_position: StartPosition,
         max_elements: usize,
         no_gil: bool,
-    ) -> PyResult<Vec<PyObject>> {
+    ) -> PyResult<(Vec<PyObject>, bool)> {
         Python::with_gil(|py| {
             let start_position = match start_position {
                 StartPosition::Oldest => mpmc::StartPosition::Oldest,
@@ -299,8 +301,9 @@ impl MpmcQueue {
             } else {
                 self.0.next(max_elements, label, start_position)
             }
-            .map(|results| {
-                results
+            .map(|result| {
+                result
+                    .0
                     .into_iter()
                     .map(|r| {
                         PyBytes::new_bound_with(py, r.len(), |b: &mut [u8]| {
@@ -310,6 +313,7 @@ impl MpmcQueue {
                         .map(PyObject::from)
                     })
                     .collect::<PyResult<Vec<_>>>()
+                    .map(|e| (e, result.1))
             })
             .map_err(|_| PyRuntimeError::new_err("Failed to retrieve items"))
         })?
