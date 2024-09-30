@@ -74,7 +74,7 @@ jobs:
         env:
           MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
         with:
-          container: ${{ matrix.maturin_action_docker_image }}
+          # container: ${{ matrix.maturin_action_docker_image }}
           command: upload
           args: --skip-existing distfiles/dist/*
 
