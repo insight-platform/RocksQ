@@ -28,10 +28,12 @@ jobs:
       matrix:
         include:
           - docker_file: docker/Dockerfile.manylinux_2_28_ARM64
+            maturin_action_docker_image: ghcr.io/insight-platform/manylinux_2_28_arm64:v0.0.5
             name: manylinux-arm
             arch: linux/arm64
             runner: ARM64
           - docker_file: docker/Dockerfile.manylinux_2_28_X64
+            maturin_action_docker_image: ghcr.io/insight-platform/manylinux_2_28_x64:v0.0.5
             name: manylinux-x86
             arch: linux/amd64
             runner: X64
@@ -72,6 +74,7 @@ jobs:
         env:
           MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
         with:
+          container: ${{ matrix.maturin_action_docker_image }}
           command: upload
           args: --skip-existing distfiles/dist/*
 
