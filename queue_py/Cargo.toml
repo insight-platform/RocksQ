@@ -16,17 +16,16 @@ rust-version.workspace = true
 crate-type = ["cdylib", "lib"]
 
 [dependencies]
-queue_rs = { path = "../queue_rs" }
-
-[dependencies.pyo3]
-version = "0.22.2"
+queue_rs = { workspace = true }
+pyo3 = { workspace = true }
+rocksdb = { workspace = true }
 
 [dev-dependencies]
-serial_test = "3"
+serial_test = { workspace = true }
 
 [build-dependencies]
-pyo3-build-config = "0.22.2"
-cbindgen = "0.27.0"
+pyo3-build-config = { workspace = true }
+cbindgen = { workspace = true }
 
 [package.metadata.maturin]
 python-source = "python"
@@ -35,6 +34,3 @@ python-source = "python"
 extension-module = ["pyo3/extension-module"]
 default = ["extension-module"]
 
-[dependencies.rocksdb]
-version = "0.22"
-default-features = false

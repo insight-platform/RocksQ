@@ -48,6 +48,7 @@ impl PersistentQueueWithCapacity {
         }
         db_opts.create_if_missing(true);
         db_opts.set_prefix_extractor(rocksdb::SliceTransform::create_fixed_prefix(U64_BYTE_LEN));
+        db_opts.set_compaction_style(rocksdb::DBCompactionStyle::Fifo);
 
         let db = DB::open(&db_opts, path)?;
 

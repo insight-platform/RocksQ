@@ -1,0 +1,20 @@
+{
+    "name": "My Dev Container",
+    "image": "ghcr.io/insight-platform/manylinux_2_28:v1.1.0",
+    "features": {},
+    "customizations": {
+        "vscode": {
+            "settings": {},
+            "extensions": [
+                "ms-python.python",
+                "ms-azuretools.vscode-docker",
+                "rust-lang.rust-analyzer",
+                "tamasfe.even-better-toml"
+            ]
+        }
+    },
+    "forwardPorts": [
+        3000
+    ],
+    "postCreateCommand": "echo 'Dev container ready!'"
+}

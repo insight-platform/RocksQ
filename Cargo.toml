@@ -7,7 +7,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 authors = ["Ivan Kudriavtsev <ivan.a.kudryavtsev@gmail.com>"]
 description = "Rust persistent queue based on RocksDB with Python bindings"
@@ -24,4 +24,20 @@ opt-level = 3
 
 [profile.bench]
 opt-level = 3
+
+[workspace.dependencies]
+
+anyhow = "1"
+parking_lot = "0.12"
+crossbeam-channel = "0.5"
+bincode = "2.0.1"
+chrono = "0.4"
+rocksdb = { version = "0.24", default-features = false }
+tempfile = "3.21"
+queue_rs = { path = "queue_rs" }
+pyo3 = "0.25"
+serial_test = "3"
+pyo3-build-config = "0.25"
+cbindgen = "0.29"
+criterion = { version = "0.5", features = ["html_reports"] }
 
