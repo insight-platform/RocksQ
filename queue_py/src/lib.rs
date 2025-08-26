@@ -92,7 +92,7 @@ fn rocksq(py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     m.add_class::<StartPosition>()?;
 
-    let sys = PyModule::import_bound(py, "sys")?;
+    let sys = PyModule::import(py, "sys")?;
     let attr_modules = sys.getattr("modules")?;
     let sys_modules: &Bound<'_, PyDict> = attr_modules.downcast::<PyDict>()?;
 

@@ -27,19 +27,18 @@ jobs:
     strategy:
       matrix:
         include:
-          - docker_file: docker/Dockerfile.manylinux_2_28_ARM64
-            maturin_action_docker_image: ghcr.io/insight-platform/manylinux_2_28_arm64:v0.0.5
+          - docker_file: docker/Dockerfile.manylinux_2_28
+            maturin_action_docker_image: ghcr.io/insight-platform/manylinux_2_28:v1.1.0
             name: manylinux-arm
             arch: linux/arm64
-            runner: ARM64
-          - docker_file: docker/Dockerfile.manylinux_2_28_X64
-            maturin_action_docker_image: ghcr.io/insight-platform/manylinux_2_28_x64:v0.0.5
+            group: native-builders-arm64
+          - docker_file: docker/Dockerfile.manylinux_2_28
+            maturin_action_docker_image: ghcr.io/insight-platform/manylinux_2_28:v1.1.0
             name: manylinux-x86
             arch: linux/amd64
-            runner: X64
+            group: native-builders-x64
     runs-on:
-      - self-hosted
-      - ${{ matrix.runner }}
+      group: ${{ matrix.group }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

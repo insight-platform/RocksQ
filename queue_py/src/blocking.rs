@@ -111,7 +111,7 @@ impl PersistentQueueWithCapacity {
                 results
                     .into_iter()
                     .map(|r| {
-                        PyBytes::new_bound_with(py, r.len(), |b: &mut [u8]| {
+                        PyBytes::new_with(py, r.len(), |b: &mut [u8]| {
                             b.copy_from_slice(&r);
                             Ok(())
                         })
@@ -306,7 +306,7 @@ impl MpmcQueue {
                     .0
                     .into_iter()
                     .map(|r| {
-                        PyBytes::new_bound_with(py, r.len(), |b: &mut [u8]| {
+                        PyBytes::new_with(py, r.len(), |b: &mut [u8]| {
                             b.copy_from_slice(&r);
                             Ok(())
                         })

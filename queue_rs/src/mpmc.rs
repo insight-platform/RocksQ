@@ -60,6 +60,7 @@ impl MpmcQueue {
         let mut cf_opts = Options::default();
         cf_opts.create_if_missing(true);
         cf_opts.set_prefix_extractor(SliceTransform::create_fixed_prefix(crate::U64_BYTE_LEN));
+        cf_opts.set_compaction_style(rocksdb::DBCompactionStyle::Fifo);
         let data_cf = ColumnFamilyDescriptor::new(DATA_CF, cf_opts);
 
         let mut cf_opts = Options::default();
